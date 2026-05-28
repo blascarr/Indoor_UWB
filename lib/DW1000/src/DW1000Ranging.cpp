@@ -151,6 +151,8 @@ void DW1000RangingClass::generalStart() {
 		Serial.println(msg);
 	}
 	
+	// Vincent changes
+	DW1000.large_power_init();
 	
 	// anchor starts in receiving mode, awaiting a ranging poll message
 	receiver();
@@ -368,6 +370,7 @@ int16_t DW1000RangingClass::detectMessageType(byte datas[]) {
 		//we have a short mac frame message (poll, range, range report, etc..)
 		return datas[SHORT_MAC_LEN];
 	}
+	return -1;
 }
 
 void DW1000RangingClass::loop() {

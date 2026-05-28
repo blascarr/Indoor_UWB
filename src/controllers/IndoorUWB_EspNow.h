@@ -51,14 +51,14 @@ class IndoorUwb_EspNow : public IndoorUwb_Controller {
   private:
 	esp_now_peer_info_t peerInfo{};
 
-	static void onDataSent(const uint8_t *mac, esp_now_send_status_t status) {
-		(void)mac;
+	static void onDataSent(const esp_now_send_info_t *info, esp_now_send_status_t status) {
+		(void)info;
 		DUMPLN("ESP-NOW send status: ",
 			   status == ESP_NOW_SEND_SUCCESS ? "OK" : "FAIL");
 	}
 
-	static void onDataRecv(const uint8_t *mac, const uint8_t *data, int len) {
-		(void)mac;
+	static void onDataRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
+		(void)info;
 #if defined(INDOOR_UWB_ROLE_TAG)
 		if (len != (int)sizeof(Anchor)) {
 			return;

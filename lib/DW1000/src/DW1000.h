@@ -239,6 +239,8 @@ public:
 	static void setChannel(byte channel);
 	static void setPreambleCode(byte preacode);
 	static void useSmartPower(boolean smartPower);
+	// Makerfabs high-power module: enable external PA/LNA and max TX power
+	static void large_power_init();
 	
 	/* transmit and receive configuration. */
 	static DW1000Time   setDelay(const DW1000Time& delay);

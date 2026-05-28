@@ -1815,3 +1815,30 @@ void DW1000Class::getPrettyBytes(byte cmd, uint16_t offset, char msgBuffer[], ui
 	msgBuffer[b++] = '\0';
 	free(readBuf);
 }
+
+void DW1000Class::large_power_init() {
+	byte reg[4];
+
+	readBytes(GPIO_CTRL, 0, reg, 4);
+
+	reg[1] |= 0x40;
+	reg[2] |= 0x01;
+	reg[2] |= 0x05;
+
+	writeBytes(GPIO_CTRL, 0, reg, 4);
+
+	reg[0] = reg[1] = reg[2] = reg[3] = 0;
+	writeBytes(PMSC, 0x26, reg, 2);
+
+	reg[0] = 0xC0;
+	reg[1] = 0;
+	reg[2] = 0;
+	reg[3] = 0;
+	writeBytes(TX_CAL, TC_PGDELAY_SUB, reg, 1);
+
+	reg[0] = 0x1f;
+	reg[1] = 0x1f;
+	reg[2] = 0x1f;
+	reg[3] = 0x1f;
+	writeBytes(TX_POWER, 0, reg, 4);
+}
