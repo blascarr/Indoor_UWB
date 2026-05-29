@@ -117,6 +117,7 @@ public:
 	
 	
 	static DW1000Device* getDistantDevice();
+	static DW1000Device* getNetworkDeviceAt(uint8_t index);
 	static DW1000Device* searchDistantDevice(byte shortAddress[]);
 	
 	//FOR DEBUGGING

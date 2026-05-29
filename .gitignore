@@ -35,3 +35,6 @@
 *.exe
 *.out
 *.app
+
+# LittleFS staging (generado por scripts/prepare_fs.py)
+/data/

@@ -6,16 +6,20 @@
 #include <WiFi.h>
 #include <functional>
 
+#if defined(INDOOR_UWB_ROLE_TAG)
+#include "IndoorUWB_ESPNow.h"
+#endif
+
 extern "C" {
 #include "esp_wifi.h"
 }
 
-class IndoorUwb_Wifi : public IndoorUwb_Controller {
+class IndoorUWB_Wifi : public IndoorUWB_Controller {
   public:
 	bool wifiStatus = false;
 
-	static IndoorUwb_Wifi &getInstance() {
-		static IndoorUwb_Wifi instance;
+	static IndoorUWB_Wifi &getInstance() {
+		static IndoorUWB_Wifi instance;
 		return instance;
 	}
 
@@ -26,7 +30,7 @@ class IndoorUwb_Wifi : public IndoorUwb_Controller {
 	void begin() override {
 		applyMacAddress();
 		wifiConfig();
-		IndoorUwb_Controller::start();
+		IndoorUWB_Controller::start();
 		installTicker();
 	}
 
@@ -50,20 +54,40 @@ class IndoorUwb_Wifi : public IndoorUwb_Controller {
 
 	void wifiConfig() {
 		WiFi.mode(WIFI_STA);
-		WiFi.begin(WIFI_SSID, WIFI_PASS);
 		if (!WiFi.config(LOCAL_IP, GATEWAY, SUBNET, PRIMARYDNS, SECONDARYDNS)) {
-			DUMPSLN("STA Failed to configure");
+			DUMPSLN("WiFi: fallo al configurar IP estatica");
 		}
-		DUMPSLN("Connecting to WiFi...");
+		DUMPF("WiFi: conectando a \"%s\" (IP objetivo %s)...\n", WIFI_SSID,
+			  LOCAL_IP.toString().c_str());
+		WiFi.begin(WIFI_SSID, WIFI_PASS);
 	}
 
 	void installTicker() {
 #if WIFI_SUPERVISOR_ENABLED
-		setCallback(std::bind(&IndoorUwb_Wifi::linkSupervisorTick, this),
+		setCallback(std::bind(&IndoorUWB_Wifi::linkSupervisorTick, this),
 					WIFI_SUPERVISOR_POLL_MS);
 #else
-		setCallback(std::bind(&IndoorUwb_Wifi::checkWifiConnection, this), 500);
+		setCallback(std::bind(&IndoorUWB_Wifi::checkWifiConnection, this), 500);
 #endif
+	}
+
+	void logWifiConnected() {
+		DUMPF("WiFi conectado — SSID: %s\n", WiFi.SSID().c_str());
+		DUMPF("  IP:      %s\n", WiFi.localIP().toString().c_str());
+		DUMPF("  Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
+		DUMPF("  Mascara: %s\n", WiFi.subnetMask().toString().c_str());
+		DUMPF("  RSSI:    %d dBm\n", WiFi.RSSI());
+#if defined(INDOOR_UWB_ROLE_TAG)
+		if (!_espNowSyncOnConnectDone) {
+			_espNowSyncOnConnectDone = true;
+			IndoorUWB_ESPNow::requestAnchorSync();
+		}
+#endif
+	}
+
+	void logWifiDisconnected(uint8_t reason) {
+		DUMPF("WiFi desconectado (motivo=%u). Reintentando \"%s\"...\n", reason,
+			  WIFI_SSID);
 	}
 
 #if WIFI_SUPERVISOR_ENABLED
@@ -71,17 +95,22 @@ class IndoorUwb_Wifi : public IndoorUwb_Controller {
 		if (WiFi.status() == WL_CONNECTED) {
 			if (!wifiStatus) {
 				wifiStatus = true;
-				DUMPLN("WiFi OK - IP: ", WiFi.localIP());
+				logWifiConnected();
 			}
 			return;
+		}
+		if (wifiStatus) {
+			logWifiDisconnected(WiFi.status());
 		}
 		wifiStatus = false;
 		if (millis() < _nextCycleMs) {
 			return;
 		}
+		DUMPF("WiFi: ciclo de reconexion a \"%s\"...\n", WIFI_SSID);
 		for (int i = 0; i < WIFI_CONNECT_ATTEMPTS_PER_CYCLE; i++) {
 			if (WiFi.status() == WL_CONNECTED) {
 				wifiStatus = true;
+				logWifiConnected();
 				return;
 			}
 			WiFi.disconnect();
@@ -94,9 +123,12 @@ class IndoorUwb_Wifi : public IndoorUwb_Controller {
 				delay(50);
 			}
 		}
+		DUMPF("WiFi: sin conexion tras %d intentos. Proximo ciclo en %lu s\n",
+			  WIFI_CONNECT_ATTEMPTS_PER_CYCLE, WIFI_RETRY_CYCLE_MS / 1000UL);
 		_nextCycleMs = millis() + WIFI_RETRY_CYCLE_MS;
 	}
 	unsigned long _nextCycleMs = 0;
+	bool _espNowSyncOnConnectDone = false;
 #endif
 };
 

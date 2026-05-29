@@ -2,19 +2,19 @@
 #define _INDOOR_UWB_MANAGER_H
 
 #include "../config.h"
-#include "../controllers/IndoorUWB_Dw1000.h"
-#include "../controllers/IndoorUWB_Eeprom.h"
-#include "../controllers/IndoorUWB_EspNow.h"
-#include "../controllers/IndoorUWB_Ota.h"
+#include "../controllers/IndoorUWB_DW1000.h"
+#include "../controllers/IndoorUWB_ESPNow.h"
+#include "../controllers/IndoorUWB_OTA.h"
 #include "../controllers/IndoorUWB_WebServer.h"
 #include "../controllers/IndoorUWB_Wifi.h"
+#include "../controllers/IndoorUWB_Storage.h"
 #include "types.h"
 
 #if defined(INDOOR_UWB_ROLE_TAG)
 #include "../controllers/IndoorUWB_Tag.h"
 #endif
 
-class IndoorUwb_Manager {
+class IndoorUWB_Manager {
   public:
 	void begin() {
 		delay(500);
@@ -27,24 +27,24 @@ class IndoorUwb_Manager {
 #endif
 		);
 
-		eeprom = &IndoorUwb_Eeprom::getInstance();
-		wifi = &IndoorUwb_Wifi::getInstance();
-		espNow = &IndoorUwb_EspNow::getInstance();
-		dw1000 = &IndoorUwb_Dw1000::getInstance();
-		web = &IndoorUwb_WebServer::getInstance();
-		ota = &IndoorUwb_Ota::getInstance();
+		storage = &IndoorUWB_Storage::getInstance();
+		wifi = &IndoorUWB_Wifi::getInstance();
+		espNow = &IndoorUWB_ESPNow::getInstance();
+		dw1000 = &IndoorUWB_DW1000::getInstance();
+		web = &IndoorUWB_WebServer::getInstance();
+		ota = &IndoorUWB_OTA::getInstance();
 #if defined(INDOOR_UWB_ROLE_TAG)
-		tag = &IndoorUwb_Tag::getInstance();
+		tag = &IndoorUWB_Tag::getInstance();
 #endif
 
-		const auto onState = IndoorUwb_Manager::stateChangedCallback;
+		const auto onState = IndoorUWB_Manager::stateChangedCallback;
 		wifi->setOnChangeCallback(onState);
 		dw1000->setOnChangeCallback(onState);
 		espNow->setOnChangeCallback(onState);
 		web->setOnChangeCallback(onState);
 		ota->setOnChangeCallback(onState);
 
-		eeprom->begin();
+		storage->begin();
 		wifi->begin();
 		espNow->begin();
 		dw1000->begin();
@@ -71,14 +71,14 @@ class IndoorUwb_Manager {
 	}
 
   private:
-	IndoorUwb_Eeprom *eeprom = nullptr;
-	IndoorUwb_Wifi *wifi = nullptr;
-	IndoorUwb_EspNow *espNow = nullptr;
-	IndoorUwb_Dw1000 *dw1000 = nullptr;
-	IndoorUwb_WebServer *web = nullptr;
-	IndoorUwb_Ota *ota = nullptr;
+	IndoorUWB_Storage *storage = nullptr;
+	IndoorUWB_Wifi *wifi = nullptr;
+	IndoorUWB_ESPNow *espNow = nullptr;
+	IndoorUWB_DW1000 *dw1000 = nullptr;
+	IndoorUWB_WebServer *web = nullptr;
+	IndoorUWB_OTA *ota = nullptr;
 #if defined(INDOOR_UWB_ROLE_TAG)
-	IndoorUwb_Tag *tag = nullptr;
+	IndoorUWB_Tag *tag = nullptr;
 #endif
 };
 

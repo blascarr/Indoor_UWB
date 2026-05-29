@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Indoor UWB — Tag</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <main id="page-main" class="page-main">
+    <header>
+      <h1>Indoor UWB — Tag</h1>
+      <p id="status">Cargando...</p>
+    </header>
+
+    <nav class="main-nav" aria-label="Secciones">
+      <button type="button" class="nav-btn active" data-panel="discovery">Descubrimiento</button>
+      <button type="button" class="nav-btn" data-panel="api">API REST</button>
+      <button type="button" id="debug-drawer-nav" class="nav-btn nav-debug">Debug</button>
+    </nav>
+
+    <section id="panel-discovery" class="panel active">
+      <section class="card card-highlight">
+        <div class="row">
+          <div>
+            <h2>Dispositivos UWB detectados</h2>
+            <p class="hint">Lista en vivo del ranging DW1000. Si está vacía, el anchor no está en rango o no comparte protocolo.</p>
+          </div>
+          <div class="row actions">
+            <label class="checkbox-label">
+              <input type="checkbox" id="auto-refresh" checked>
+              Auto (3 s)
+            </label>
+            <button id="sync-all" type="button">Vincular todos</button>
+            <button id="refresh" type="button" class="secondary">Actualizar</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Short UWB</th>
+              <th>Distancia</th>
+              <th>RX dBm</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="discovered-rows"></tbody>
+        </table>
+        <p id="discovered-empty" class="empty-msg">Sin dispositivos UWB en ranging (uwb_count=0). Abre el panel Debug (derecha) o revisa el monitor serie.</p>
+      </section>
+
+      <section class="card">
+        <h2>Anchors vinculados (NVS)</h2>
+        <p class="hint">Distancia en vivo solo si el short UWB coincide con un dispositivo detectado arriba.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>MAC WiFi</th>
+              <th>Short</th>
+              <th>Distancia</th>
+              <th>X</th>
+              <th>Y</th>
+              <th>Z</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="linked-rows"></tbody>
+        </table>
+        <p id="linked-empty" class="empty-msg" hidden>Aún no hay anchors en NVS.</p>
+      </section>
+
+      <details class="card advanced">
+        <summary>Registro manual (avanzado)</summary>
+        <p class="hint">MAC WiFi = 6 bytes (ej. 40:91:51:AE:95:74). No uses la dirección UWB de 8 bytes en el campo WiFi.</p>
+        <form id="add-form">
+          <label>Nombre<input name="name" placeholder="Anchor_A" required></label>
+          <label>MAC WiFi (6 bytes)<input name="wifi_mac" placeholder="40:91:51:AE:95:74" required></label>
+          <label>Dirección UWB (8 bytes, opcional)<input name="uwb_address" placeholder="83:17:5B:D5:A9:9A:E2:9D"></label>
+          <label>Short UWB (opcional)<input name="shortAddress" placeholder="0x1234"></label>
+          <label>X (m)<input name="x" type="number" step="0.01" value="0"></label>
+          <label>Y (m)<input name="y" type="number" step="0.01" value="0"></label>
+          <label>Z (m)<input name="z" type="number" step="0.01" value="0"></label>
+          <label>Offset (m)<input name="offset" type="number" step="0.01" value="0"></label>
+          <div class="row">
+            <button type="submit">Guardar en NVS</button>
+            <button id="save-and-sync" type="button" class="secondary">Guardar y sync ESP-NOW</button>
+          </div>
+        </form>
+      </details>
+    </section>
+
+    <section id="panel-api" class="panel" hidden>
+      <section class="card">
+        <h2>Endpoints disponibles (Tag)</h2>
+        <p class="hint">Pulsa «Probar» para llamar al endpoint y ver la respuesta JSON.</p>
+
+        <article class="endpoint">
+          <div class="endpoint-head">
+            <span class="method get">GET</span>
+            <code>/api/debug</code>
+            <button type="button" class="secondary try-api" data-method="GET" data-path="/api/debug">Probar</button>
+          </div>
+          <p class="endpoint-desc">Estado UWB/WiFi y lista de dispositivos en ranging.</p>
+        </article>
+
+        <article class="endpoint">
+          <div class="endpoint-head">
+            <span class="method get">GET</span>
+            <code>/api/status</code>
+            <button type="button" class="secondary try-api" data-method="GET" data-path="/api/status">Probar</button>
+          </div>
+        </article>
+
+        <article class="endpoint">
+          <div class="endpoint-head">
+            <span class="method get">GET</span>
+            <code>/api/anchors</code>
+            <button type="button" class="secondary try-api" data-method="GET" data-path="/api/anchors">Probar</button>
+          </div>
+        </article>
+
+        <article class="endpoint">
+          <div class="endpoint-head">
+            <span class="method post">POST</span>
+            <code>/api/anchors</code>
+            <button type="button" class="secondary try-api" data-method="POST" data-path="/api/anchors" data-body-id="body-post-anchor">Probar</button>
+          </div>
+          <textarea id="body-post-anchor" rows="4">{"name":"Anchor_A","wifi_mac":"40:91:51:AE:95:74","uwb_address":"83:17:5B:D5:A9:9A:E2:9D","x":0,"y":0,"z":0,"offset":0}</textarea>
+        </article>
+
+        <article class="endpoint">
+          <div class="endpoint-head">
+            <span class="method post">POST</span>
+            <code>/api/sync</code>
+            <button type="button" class="secondary try-api" data-method="POST" data-path="/api/sync" data-body="{}">Probar</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="card">
+        <h2>Respuesta API</h2>
+        <pre id="api-output" class="api-output">—</pre>
+      </section>
+    </section>
+  </main>
+
+  <aside id="debug-drawer" class="debug-drawer" aria-label="Registro de actividad">
+    <button type="button" id="debug-drawer-toggle" class="debug-drawer-tab" title="Abrir/cerrar debug" aria-expanded="true">
+      <span class="debug-drawer-tab-label">Debug</span>
+      <span class="debug-drawer-tab-icon" aria-hidden="true">›</span>
+    </button>
+    <div class="debug-drawer-panel">
+      <header class="debug-drawer-header">
+        <h2>Registro de actividad</h2>
+        <p class="hint">Mismos eventos que en el monitor serie del tag.</p>
+        <button id="clear-debug" type="button" class="secondary">Limpiar</button>
+      </header>
+      <pre id="debug-log" class="debug-log">Abre este panel con el botón «Debug» o la pestaña lateral.</pre>
+    </div>
+  </aside>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -13,8 +13,10 @@
 #define UWB_PIN_RST 27
 #define UWB_PIN_IRQ 34
 #define UWB_PIN_SS 21
-#elif defined(INDOOR_UWB_BOARD_MAKERFABS_V1) || defined(INDOOR_UWB_BOARD_ESP32DEV)
-/** Makerfabs ESP32 UWB v1.0 / Basic / Pro sin display; esp32dev mismo pinout. */
+#elif defined(INDOOR_UWB_BOARD_MAKERFABS_V1) ||                                \
+	defined(INDOOR_UWB_BOARD_ESP32DEV)
+/** Makerfabs ESP32 UWB v1.0 / Basic / Pro sin display; esp32dev mismo pinout.
+ */
 #define UWB_SPI_SCK 18
 #define UWB_SPI_MISO 19
 #define UWB_SPI_MOSI 23
@@ -51,7 +53,7 @@
 #define OTA_PORT 8266
 
 // ------------------ UWB / trilateración (tag) ------------------ //
-#define UWB_DEBUG 0
+#define UWB_DEBUG 1
 #define UWB_RANGE_FILTER 1
 #define TRILATERATION_DEBUG 1
 #define TRILATERATION_NODES 3
@@ -59,32 +61,27 @@
 #define TRILATERATION3D 1
 #endif
 
-// ------------------ EEPROM ------------------ //
+// ------------------ Anchors / almacenamiento ------------------ //
 #define EEPROM_ANCHORLIST_SIZE 4
 #define ANCHORLIST_FINGERPRINT '@'
 
-// ------------------ Servidor HTTP / rutas ------------------ //
+#if defined(INDOOR_UWB_ROLE_TAG)
+#define PREFS_NAMESPACE "uwb_tag"
+#define PREFS_KEY_ANCHOR_LIST "anchors"
+#elif defined(INDOOR_UWB_ROLE_ANCHOR)
+#define PREFS_NAMESPACE "uwb_anchor"
+#define PREFS_KEY_POS_X "pos_x"
+#define PREFS_KEY_POS_Y "pos_y"
+#define PREFS_KEY_POS_Z "pos_z"
+#define PREFS_KEY_POS_OFFSET "pos_offset"
+#endif
+
+// ------------------ ESP-NOW ------------------ //
+static const uint8_t ESPNOW_BROADCAST_MAC[] = {0xFF, 0xFF, 0xFF,
+											   0xFF, 0xFF, 0xFF};
+
+// ------------------ Servidor HTTP ------------------ //
 #define SERVER_PORT 80
-#define ADD_ANCHOR_INPUT "/add_anchor"
-#define ANCHOR_NAME_INPUT "anchor_name"
-#define DW1000_ADDRESS_INPUT "dw1000_address"
-#define DW1000_NUM_INPUT "dw1000_shortAddress"
-#define MAC_ADDRESS_INPUT "mac_address"
-#define POSITIONX_INPUT "node_positionX"
-#define POSITIONY_INPUT "node_positionY"
-#define POSITIONZ_INPUT "node_positionZ"
-#define POSITION_OFFSET "node_offset"
-#define X_INPUT "x"
-#define Y_INPUT "y"
-#define Z_INPUT "z"
-#define OFFSET_INPUT "offset"
-#define NODE_INFO_SEND_EVENT "node_info"
-#define DW1000_ADDRESS_SEND_EVENT "dw1000_address"
-#define MAC_ADDRESS_SEND_EVENT "mac_address"
-#define REMOVE_ANCHOR_INPUT "/remove_anchor"
-#define REMOVE_ANCHOR_NAME_INPUT "remove_anchor_name"
-#define CLEAN_MEMORY_INPUT "/clean_memory"
-#define POSITION_SERVER_INPUT "/node_position"
 
 // ------------------ Tag loop ------------------ //
 #define TAG_LOOP_INTERVAL_MS 10u
@@ -100,21 +97,21 @@
 #define DUMPVHEX(v) SERIALDEBUG.print(v, HEX)
 #define DUMPVLN(v) SERIALDEBUG.println(v)
 #define DUMPPRINTLN() SERIALDEBUG.println()
-#define DUMP(s, v)                                                           \
-	do {                                                                   \
-		DUMPS(s);                                                          \
-		DUMPV(v);                                                          \
+#define DUMP(s, v)                                                             \
+	do {                                                                       \
+		DUMPS(s);                                                              \
+		DUMPV(v);                                                              \
 	} while (0)
 #define DUMPLN(s, v)                                                           \
-	do {                                                                   \
-		DUMPS(s);                                                          \
-		DUMPV(v);                                                          \
-		DUMPPRINTLN();                                                     \
+	do {                                                                       \
+		DUMPS(s);                                                              \
+		DUMPV(v);                                                              \
+		DUMPPRINTLN();                                                         \
 	} while (0)
 #define DUMPHEX(s, v)                                                          \
-	do {                                                                   \
-		DUMPS(s);                                                          \
-		DUMPVHEX(v);                                                       \
+	do {                                                                       \
+		DUMPS(s);                                                              \
+		DUMPVHEX(v);                                                           \
 	} while (0)
 #define DUMPF(fmt, ...) SERIALDEBUG.printf(fmt, ##__VA_ARGS__)
 #else

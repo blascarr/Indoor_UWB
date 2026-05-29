@@ -5,10 +5,10 @@
 #include "IndoorUWB_Controller.h"
 #include <ArduinoOTA.h>
 
-class IndoorUwb_Ota : public IndoorUwb_Controller {
+class IndoorUWB_OTA : public IndoorUWB_Controller {
   public:
-	static IndoorUwb_Ota &getInstance() {
-		static IndoorUwb_Ota instance;
+	static IndoorUWB_OTA &getInstance() {
+		static IndoorUWB_OTA instance;
 		return instance;
 	}
 

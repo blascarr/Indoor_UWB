@@ -7,7 +7,7 @@
 #define OTA_HOST "ANCHOR_D"
 static char ANCHOR_ADDRESS[] = "83:17:5B:D5:A9:9A:E2:9D";
 static const uint8_t MACAddress[] = {0x40, 0x91, 0x51, 0xAE, 0x95, 0x74};
-static const uint8_t ESPNOW_BROADCAST[] = {0x40, 0x91, 0x51, 0xAE, 0x95, 0x50};
+static const uint8_t ESPNOW_TAG_MAC[] = {0x40, 0x91, 0x51, 0xAE, 0x95, 0x50};
 #define IMU_ENABLED 0
 
 #endif

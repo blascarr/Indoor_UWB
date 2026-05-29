@@ -6,13 +6,13 @@
 
 using StateChangeCallback = void (*)(ControllerType, status_t, status_t);
 
-class IndoorUwb_Controller : public TickerFree<> {
+class IndoorUWB_Controller : public TickerFree<> {
   public:
 	StateChangeCallback onChangeCallback = nullptr;
 	status_t currentState = STOPPED;
 	status_t previousState = STOPPED;
 
-	IndoorUwb_Controller() : TickerFree(nullptr, 1000) {}
+	IndoorUWB_Controller() : TickerFree(nullptr, 1000) {}
 
 	virtual void begin() {}
 

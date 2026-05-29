@@ -5,8 +5,8 @@
 #include "../models/AnchorModel.h"
 #include "../models/Trilateration.h"
 #include "IndoorUWB_Controller.h"
-#include "IndoorUWB_Eeprom.h"
-#include "IndoorUWB_EspNow.h"
+#include "IndoorUWB_ESPNow.h"
+#include "IndoorUWB_Storage.h"
 #include <DW1000Ranging.h>
 #include <SPI.h>
 
@@ -14,10 +14,10 @@
 extern Vector3D gPosition;
 #endif
 
-class IndoorUwb_Dw1000 : public IndoorUwb_Controller {
+class IndoorUWB_DW1000 : public IndoorUWB_Controller {
   public:
-	static IndoorUwb_Dw1000 &getInstance() {
-		static IndoorUwb_Dw1000 instance;
+	static IndoorUWB_DW1000 &getInstance() {
+		static IndoorUWB_DW1000 instance;
 		return instance;
 	}
 
@@ -56,40 +56,29 @@ class IndoorUwb_Dw1000 : public IndoorUwb_Controller {
 	}
 
 	static void onNewDevice(DW1000Device *device) {
-#if PRINTDEBUG
-		DUMPLN("NEW UWB device short:", device->getShortAddress());
-#endif
+		DUMPF("UWB: nuevo dispositivo, short=0x%04X\n",
+			  device->getShortAddress());
 #if defined(INDOOR_UWB_ROLE_TAG)
-		EspNowPosition pkt{};
-		IndoorUwb_EspNow::sendPosition(&pkt);
-#elif defined(INDOOR_UWB_ROLE_ANCHOR)
-		EspNowPosition pkt = IndoorUwb_Eeprom::getInstance().position;
-		IndoorUwb_EspNow::sendPosition(&pkt);
+		IndoorUWB_ESPNow::requestAnchorSync(device->getShortAddress());
 #endif
-		(void)device;
 	}
 
 	static void onInactiveDevice(DW1000Device *device) {
-		DUMPHEX("UWB inactive: ", device->getShortAddress());
-		DUMPPRINTLN();
+		DUMPF("UWB: dispositivo inactivo, short=0x%04X\n",
+			  device->getShortAddress());
 	}
 
 #if defined(INDOOR_UWB_ROLE_TAG)
 	static void onNewRangeTag() {
-#if PRINTDEBUG && UWB_DEBUG
 		DW1000Device *dev = DW1000Ranging.getDistantDevice();
-		if (!dev) {
-			return;
+		if (dev) {
+			DUMPF("UWB: rango anchor 0x%04X = %.2f m\n", dev->getShortAddress(),
+				  dev->getRange());
 		}
-		DUMP("Range from ", dev->getShortAddress());
-		DUMPLN(" m: ", dev->getRange());
-#endif
 		if (DW1000Ranging.getNetworkDevicesNumber() < TRILATERATION_NODES) {
 			return;
 		}
 #ifdef TRILATERATION3D
-		// Trilateración completa requiere mapear anchors de EEPROM +
-		// distancias; se deja hook para extensión (como IndoorUWB original).
 #if TRILATERATION_DEBUG
 		DUMP("TRILATERATION pos ", gPosition(0));
 		DUMP(" ", gPosition(1));
@@ -101,15 +90,13 @@ class IndoorUwb_Dw1000 : public IndoorUwb_Controller {
 
 #if defined(INDOOR_UWB_ROLE_ANCHOR)
 	static void onNewRangeAnchor() {
-#if PRINTDEBUG && UWB_DEBUG
 		DW1000Device *dev = DW1000Ranging.getDistantDevice();
-		if (!dev) {
-			return;
+		if (dev) {
+			DUMPF("UWB: rango con tag 0x%04X = %.2f m\n", dev->getShortAddress(),
+				  dev->getRange());
 		}
-		DUMP("Range tag ", dev->getShortAddress());
-		DUMPLN(" m: ", dev->getRange());
-#endif
 	}
+
 #endif
 };
 

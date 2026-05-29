@@ -37,13 +37,17 @@ lib/TickerFree/         # Ticker no bloqueante (como DoorGoon)
 
 ```bash
 cd Indoor_UWB
-pio run -e uwb_tag_makerfabs_v1
-pio run -e uwb_tag_makerfabs_v1 -t upload
+pio run -e uwb_tag
+pio run -e uwb_tag -t upload
+pio run -e uwb_tag -t uploadfs    # obligatorio para el portal web (LittleFS)
 
-pio run -e uwb_anchor_makerfabs_v1 -t upload
+pio run -e uwb_anchor -t upload
+pio run -e uwb_anchor -t uploadfs
 ```
 
-Monitor serie: `pio device monitor -e uwb_tag_makerfabs_v1`
+Los HTML/CSS/JS viven en `data_tag/` (tag) y `data_anchor/` (anchor). El script `scripts/prepare_fs.py` copia la carpeta correcta a `data/` antes de generar la imagen LittleFS.
+
+Monitor serie: `pio device monitor -e uwb_tag`
 
 ## Tests
 
@@ -71,7 +75,7 @@ Por defecto (editable en `config_tag.h` / `config_anchor.h`):
 ## Notas
 
 - Librería UWB en `lib/DW1000` (fork de [arduino-dw1000](https://github.com/thotro/arduino-dw1000) con parche ESP32: sin `SPI.usingInterrupt`). Makerfabs publica `mf_DW1000.zip` si necesitas su variante exacta.
-- La trilateración 3D conserva el hook de IndoorUWB; el mapeo completo anchor↔distancia se puede ampliar en `IndoorUWB_Dw1000`.
+- La trilateración 3D conserva el hook de IndoorUWB; el mapeo completo anchor↔distancia se puede ampliar en `IndoorUWB_DW1000`.
 
 ## Licencia
 

@@ -328,6 +328,13 @@ DW1000Device* DW1000RangingClass::getDistantDevice() {
 	
 }
 
+DW1000Device* DW1000RangingClass::getNetworkDeviceAt(uint8_t index) {
+	if (index >= _networkDevicesNumber) {
+		return nullptr;
+	}
+	return &_networkDevices[index];
+}
+
 
 /* ###########################################################################
  * #### Public methods #######################################################

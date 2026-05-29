@@ -3,14 +3,14 @@
 
 #include "../config.h"
 #include "IndoorUWB_Controller.h"
-#include "IndoorUWB_Dw1000.h"
+#include "IndoorUWB_DW1000.h"
 
 #if defined(INDOOR_UWB_ROLE_TAG)
 
-class IndoorUwb_Tag : public IndoorUwb_Controller {
+class IndoorUWB_Tag : public IndoorUWB_Controller {
   public:
-	static IndoorUwb_Tag &getInstance() {
-		static IndoorUwb_Tag instance;
+	static IndoorUWB_Tag &getInstance() {
+		static IndoorUWB_Tag instance;
 		return instance;
 	}
 
@@ -19,9 +19,9 @@ class IndoorUwb_Tag : public IndoorUwb_Controller {
 	}
 
 	void begin() override {
-		setCallback([]() { IndoorUwb_Dw1000::getInstance().loop(); },
+		setCallback([]() { IndoorUWB_DW1000::getInstance().loop(); },
 					TAG_LOOP_INTERVAL_MS, 0, MILLIS);
-		IndoorUwb_Controller::start();
+		IndoorUWB_Controller::start();
 	}
 };
 
