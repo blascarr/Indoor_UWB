@@ -306,13 +306,12 @@ function pushTrail(trail, position) {
   return next;
 }
 
-if (typeof module !== 'undefined') {
-  module.exports = {
-    MAP_POLL_MS,
-    fetchMapData,
-    computeViewBounds,
-    MapViewport,
-    formatPositionStatus,
-    pushTrail,
-  };
+if (typeof window !== 'undefined') {
+  window.MAP_POLL_MS = MAP_POLL_MS;
+  window.MAP_TRAIL_MAX = MAP_TRAIL_MAX;
+  window.fetchMapData = fetchMapData;
+  window.computeViewBounds = computeViewBounds;
+  window.MapViewport = MapViewport;
+  window.formatPositionStatus = formatPositionStatus;
+  window.pushTrail = pushTrail;
 }
