@@ -90,6 +90,11 @@ public:
 	//setters
 	static void setReplyTime(uint16_t replyDelayTimeUs);
 	static void setResetPeriod(uint32_t resetPeriod);
+	static void setBaseReplyDelayTime(uint16_t replyDelayTimeUs);
+	static void setBaseTimerDelayMs(uint16_t timerDelayMs);
+	static void configureRangeValidation(float minMeters, float maxMeters,
+										 uint8_t warmupSamples);
+	static void resetDeviceRangeWarmup(DW1000Device *device);
 	
 	//getters
 	static byte* getCurrentAddress() { return _currentAddress; };
@@ -160,14 +165,20 @@ private:
 	static uint32_t    _resetPeriod;
 	// reply times (same on both sides for symm. ranging)
 	static uint16_t     _replyDelayTimeUS;
+	static uint16_t     _baseReplyDelayTimeUS;
 	//timer Tick delay
 	static uint16_t     _timerDelay;
+	static uint16_t     _baseTimerDelayMs;
 	// ranging counter (per second)
 	static uint16_t     _successRangingCount;
 	static uint32_t    _rangingCountPeriod;
 	//ranging filter
 	static volatile boolean _useRangeFilter;
 	static uint16_t         _rangeFilterValue;
+	static boolean          _rangeValidationEnabled;
+	static float            _rangeMinM;
+	static float            _rangeMaxM;
+	static uint8_t          _rangeWarmupSamples;
 	//_bias correction
 	static char  _bias_RSL[17]; // TODO remove or use
 	//17*2=34 bytes in SRAM
@@ -209,6 +220,7 @@ private:
 	
 	//Utils
 	static float filterValue(float value, float previousValue, uint16_t numberOfElements);
+	static boolean applyValidatedRange(DW1000Device *device, float distance);
 };
 
 extern DW1000RangingClass DW1000Ranging;

@@ -57,10 +57,8 @@ class IndoorUWB_Manager {
 
 	void update() {
 		wifi->update();
+		dw1000->update();
 		ota->update();
-#if defined(INDOOR_UWB_ROLE_ANCHOR)
-		dw1000->loop();
-#endif
 	}
 
 	static void stateChangedCallback(ControllerType type, status_t prev,

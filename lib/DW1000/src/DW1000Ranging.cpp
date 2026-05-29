@@ -51,6 +51,10 @@ volatile byte    DW1000RangingClass::_expectedMsgId;
 // range filter
 volatile boolean DW1000RangingClass::_useRangeFilter = false;
 uint16_t DW1000RangingClass::_rangeFilterValue = 15;
+boolean DW1000RangingClass::_rangeValidationEnabled = false;
+float DW1000RangingClass::_rangeMinM = 0.05f;
+float DW1000RangingClass::_rangeMaxM = 30.0f;
+uint8_t DW1000RangingClass::_rangeWarmupSamples = 0;
 
 // message sent/received state
 volatile boolean DW1000RangingClass::_sentAck     = false;
@@ -74,8 +78,10 @@ uint32_t  DW1000RangingClass::_lastActivity;
 uint32_t  DW1000RangingClass::_resetPeriod;
 // reply times (same on both sides for symm. ranging)
 uint16_t  DW1000RangingClass::_replyDelayTimeUS;
+uint16_t  DW1000RangingClass::_baseReplyDelayTimeUS;
 //timer delay
 uint16_t  DW1000RangingClass::_timerDelay;
+uint16_t  DW1000RangingClass::_baseTimerDelayMs;
 // ranging counter (per second)
 uint16_t  DW1000RangingClass::_successRangingCount = 0;
 uint32_t  DW1000RangingClass::_rangingCountPeriod  = 0;
@@ -96,8 +102,10 @@ void DW1000RangingClass::initCommunication(uint8_t myRST, uint8_t mySS, uint8_t 
 	_resetPeriod      = DEFAULT_RESET_PERIOD;
 	// reply times (same on both sides for symm. ranging)
 	_replyDelayTimeUS = DEFAULT_REPLY_DELAY_TIME;
+	_baseReplyDelayTimeUS = DEFAULT_REPLY_DELAY_TIME;
 	//we set our timer delay
 	_timerDelay       = DEFAULT_TIMER_DELAY;
+	_baseTimerDelayMs = DEFAULT_TIMER_DELAY;
 	
 	
 	DW1000.begin(myIRQ, myRST);
@@ -244,6 +252,7 @@ boolean DW1000RangingClass::addNetworkDevices(DW1000Device* device, boolean shor
 	
 	if(addDevice) {
 		device->setRange(0);
+		resetDeviceRangeWarmup(device);
 		memcpy(&_networkDevices[_networkDevicesNumber], device, sizeof(DW1000Device));
 		_networkDevices[_networkDevicesNumber].setIndex(_networkDevicesNumber);
 		_networkDevicesNumber++;
@@ -271,6 +280,8 @@ boolean DW1000RangingClass::addNetworkDevices(DW1000Device* device) {
 		{
 			_networkDevicesNumber = 0;
 		}
+		device->setRange(0);
+		resetDeviceRangeWarmup(device);
 		memcpy(&_networkDevices[_networkDevicesNumber], device, sizeof(DW1000Device));
 		_networkDevices[_networkDevicesNumber].setIndex(_networkDevicesNumber);
 		_networkDevicesNumber++;
@@ -307,6 +318,29 @@ void DW1000RangingClass::removeNetworkDevices(int16_t index) {
 void DW1000RangingClass::setReplyTime(uint16_t replyDelayTimeUs) { _replyDelayTimeUS = replyDelayTimeUs; }
 
 void DW1000RangingClass::setResetPeriod(uint32_t resetPeriod) { _resetPeriod = resetPeriod; }
+
+void DW1000RangingClass::setBaseReplyDelayTime(uint16_t replyDelayTimeUs) {
+	_baseReplyDelayTimeUS = replyDelayTimeUs;
+}
+
+void DW1000RangingClass::setBaseTimerDelayMs(uint16_t timerDelayMs) {
+	_baseTimerDelayMs = timerDelayMs;
+}
+
+void DW1000RangingClass::configureRangeValidation(float minMeters,
+												  float maxMeters,
+												  uint8_t warmupSamples) {
+	_rangeMinM = minMeters;
+	_rangeMaxM = maxMeters;
+	_rangeWarmupSamples = warmupSamples;
+	_rangeValidationEnabled = true;
+}
+
+void DW1000RangingClass::resetDeviceRangeWarmup(DW1000Device *device) {
+	if (device != nullptr) {
+		device->resetRangeWarmup(_rangeWarmupSamples);
+	}
+}
 
 
 DW1000Device* DW1000RangingClass::searchDistantDevice(byte shortAddress[]) {
@@ -596,16 +630,13 @@ void DW1000RangingClass::loop() {
 								computeRangeAsymmetric(myDistantDevice, &myTOF); // CHOSEN RANGING ALGORITHM
 								
 								float distance = myTOF.getAsMeters();
-								
-								if (_useRangeFilter) {
-									//Skip first range
-									if (myDistantDevice->getRange() != 0.0f) {
-										distance = filterValue(distance, myDistantDevice->getRange(), _rangeFilterValue);
-									}
+
+								if (!applyValidatedRange(myDistantDevice, distance)) {
+									transmitRangeFailed(myDistantDevice);
+									return;
 								}
-								
+
 								myDistantDevice->setRXPower(DW1000.getReceivePower());
-								myDistantDevice->setRange(distance);
 								
 								myDistantDevice->setFPPower(DW1000.getFirstPathPower());
 								myDistantDevice->setQuality(DW1000.getReceiveQuality());
@@ -661,15 +692,10 @@ void DW1000RangingClass::loop() {
 					float curRXPower;
 					memcpy(&curRXPower, data+5+SHORT_MAC_LEN, 4);
 					
-					if (_useRangeFilter) {
-						//Skip first range
-						if (myDistantDevice->getRange() != 0.0f) {
-							curRange = filterValue(curRange, myDistantDevice->getRange(), _rangeFilterValue);
-						}
+					if (!applyValidatedRange(myDistantDevice, curRange)) {
+						return;
 					}
 
-					//we have a new range to save !
-					myDistantDevice->setRange(curRange);
 					myDistantDevice->setRXPower(curRXPower);
 					
 					
@@ -807,7 +833,9 @@ void DW1000RangingClass::transmitPoll(DW1000Device* myDistantDevice) {
 	
 	if(myDistantDevice == nullptr) {
 		//we need to set our timerDelay:
-		_timerDelay = DEFAULT_TIMER_DELAY+(uint16_t)(_networkDevicesNumber*3*DEFAULT_REPLY_DELAY_TIME/1000);
+		_timerDelay = _baseTimerDelayMs +
+					  (uint16_t)(_networkDevicesNumber * 3 *
+								  _baseReplyDelayTimeUS / 1000);
 		
 		byte shortBroadcast[2] = {0xFF, 0xFF};
 		_globalMac.generateShortMACFrame(data, _currentShortAddress, shortBroadcast);
@@ -817,7 +845,7 @@ void DW1000RangingClass::transmitPoll(DW1000Device* myDistantDevice) {
 		
 		for(uint8_t i = 0; i < _networkDevicesNumber; i++) {
 			//each devices have a different reply delay time.
-			_networkDevices[i].setReplyTime((2*i+1)*DEFAULT_REPLY_DELAY_TIME);
+			_networkDevices[i].setReplyTime((2 * i + 1) * _baseReplyDelayTimeUS);
 			//we write the short address of our device:
 			memcpy(data+SHORT_MAC_LEN+2+4*i, _networkDevices[i].getByteShortAddress(), 2);
 			
@@ -832,7 +860,7 @@ void DW1000RangingClass::transmitPoll(DW1000Device* myDistantDevice) {
 	}
 	else {
 		//we redefine our default_timer_delay for just 1 device;
-		_timerDelay = DEFAULT_TIMER_DELAY;
+		_timerDelay = _baseTimerDelayMs;
 		
 		_globalMac.generateShortMACFrame(data, _currentShortAddress, myDistantDevice->getByteShortAddress());
 		
@@ -865,7 +893,9 @@ void DW1000RangingClass::transmitRange(DW1000Device* myDistantDevice) {
 	
 	if(myDistantDevice == nullptr) {
 		//we need to set our timerDelay:
-		_timerDelay = DEFAULT_TIMER_DELAY+(uint16_t)(_networkDevicesNumber*3*DEFAULT_REPLY_DELAY_TIME/1000);
+		_timerDelay = _baseTimerDelayMs +
+					  (uint16_t)(_networkDevicesNumber * 3 *
+								  _baseReplyDelayTimeUS / 1000);
 		
 		byte shortBroadcast[2] = {0xFF, 0xFF};
 		_globalMac.generateShortMACFrame(data, _currentShortAddress, shortBroadcast);
@@ -874,7 +904,8 @@ void DW1000RangingClass::transmitRange(DW1000Device* myDistantDevice) {
 		data[SHORT_MAC_LEN+1] = _networkDevicesNumber;
 		
 		// delay sending the message and remember expected future sent timestamp
-		DW1000Time deltaTime     = DW1000Time(DEFAULT_REPLY_DELAY_TIME, DW1000Time::MICROSECONDS);
+		DW1000Time deltaTime =
+			DW1000Time(_baseReplyDelayTimeUS, DW1000Time::MICROSECONDS);
 		DW1000Time timeRangeSent = DW1000.setDelay(deltaTime);
 		
 		for(uint8_t i = 0; i < _networkDevicesNumber; i++) {
@@ -994,6 +1025,27 @@ float DW1000RangingClass::filterValue(float value, float previousValue, uint16_t
 	
 	float k = 2.0f / ((float)numberOfElements + 1.0f);
 	return (value * k) + previousValue * (1.0f - k);
+}
+
+boolean DW1000RangingClass::applyValidatedRange(DW1000Device *device,
+												float distance) {
+	if (device == nullptr) {
+		return false;
+	}
+	if (_rangeValidationEnabled &&
+		(distance < _rangeMinM || distance > _rangeMaxM)) {
+		return false;
+	}
+	if (device->getRangeWarmupRemaining() > 0) {
+		device->resetRangeWarmup(device->getRangeWarmupRemaining() - 1);
+		device->setRange(distance);
+		return true;
+	}
+	if (_useRangeFilter && device->getRange() != 0.0f) {
+		distance = filterValue(distance, device->getRange(), _rangeFilterValue);
+	}
+	device->setRange(distance);
+	return true;
 }
 
 

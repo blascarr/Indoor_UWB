@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <IPAddress.h>
+#include "config_network.h"
 
 // ------------------ Placa / pinout DW1000 ------------------ //
 #if defined(INDOOR_UWB_BOARD_MAKERFABS_PRO_DISPLAY)
@@ -35,8 +36,8 @@
 // ------------------ WiFi común ------------------ //
 #define WIFI_SSID "ZMS"
 #define WIFI_PASS "ZM4K3RS:P"
-#define GATEWAY IPAddress(192, 168, 1, 1)
-#define SUBNET IPAddress(255, 255, 255, 0)
+#define GATEWAY INDOOR_UWB_GATEWAY
+#define SUBNET INDOOR_UWB_SUBNET
 #define PRIMARYDNS IPAddress(9, 9, 9, 9)
 #define SECONDARYDNS IPAddress(208, 67, 222, 222)
 #define WIFIMANAGER_ENABLED 0
@@ -54,7 +55,34 @@
 
 // ------------------ UWB / trilateración (tag) ------------------ //
 #define UWB_DEBUG 1
+/** 1 = MODE_LONGDATA_RANGE_ACCURACY; 0 = MODE_LONGDATA_RANGE_LOWPOWER */
+#define UWB_RF_MODE_ACCURACY 1
 #define UWB_RANGE_FILTER 1
+#ifndef UWB_RANGE_FILTER_SIZE
+#define UWB_RANGE_FILTER_SIZE 10
+#endif
+#ifndef UWB_REPLY_DELAY_US
+#define UWB_REPLY_DELAY_US 12000u
+#endif
+#ifndef UWB_TIMER_DELAY_MS
+#define UWB_TIMER_DELAY_MS 120u
+#endif
+#ifndef UWB_RESET_PERIOD_MS
+#define UWB_RESET_PERIOD_MS 500u
+#endif
+#ifndef UWB_RANGE_MIN_M
+#define UWB_RANGE_MIN_M 0.05f
+#endif
+#ifndef UWB_RANGE_MAX_M
+#define UWB_RANGE_MAX_M 30.0f
+#endif
+#ifndef UWB_RANGE_WARMUP_SAMPLES
+#define UWB_RANGE_WARMUP_SAMPLES 5u
+#endif
+/** Corrección por defecto (m). Negativo resta a la lectura: corregida = raw + offset */
+#ifndef UWB_DEFAULT_OFFSET_M
+#define UWB_DEFAULT_OFFSET_M (-0.20f)
+#endif
 #define TRILATERATION_DEBUG 1
 #define TRILATERATION_NODES 3
 #ifndef TRILATERATION2D
@@ -74,6 +102,8 @@
 #define PREFS_KEY_POS_Y "pos_y"
 #define PREFS_KEY_POS_Z "pos_z"
 #define PREFS_KEY_POS_OFFSET "pos_offset"
+#define PREFS_KEY_UWB_ADDRESS "uwb_addr"
+#define UWB_EUI_STRING_LEN 24
 #endif
 
 // ------------------ ESP-NOW ------------------ //
@@ -83,8 +113,8 @@ static const uint8_t ESPNOW_BROADCAST_MAC[] = {0xFF, 0xFF, 0xFF,
 // ------------------ Servidor HTTP ------------------ //
 #define SERVER_PORT 80
 
-// ------------------ Tag loop ------------------ //
-#define TAG_LOOP_INTERVAL_MS 10u
+// ------------------ UWB ranging (TickerFree, tag y anchor) ------------------ //
+#define UWB_LOOP_INTERVAL_MS 30u
 
 // ------------------ Serial debug ------------------ //
 #define PRINTDEBUG 1

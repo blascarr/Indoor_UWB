@@ -19,9 +19,7 @@ class IndoorUWB_Tag : public IndoorUWB_Controller {
 	}
 
 	void begin() override {
-		setCallback([]() { IndoorUWB_DW1000::getInstance().loop(); },
-					TAG_LOOP_INTERVAL_MS, 0, MILLIS);
-		IndoorUWB_Controller::start();
+		DUMPSLN("Tag controller ready (UWB loop en DW1000/TickerFree)");
 	}
 };
 

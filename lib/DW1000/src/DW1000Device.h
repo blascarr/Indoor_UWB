@@ -49,6 +49,8 @@ public:
 	void setShortAddress(byte address[]);
 	
 	void setRange(float range);
+	void resetRangeWarmup(uint8_t samples);
+	uint8_t getRangeWarmupRemaining() const { return _rangeWarmupRemaining; }
 	void setRXPower(float power);
 	void setFPPower(float power);
 	void setQuality(float quality);
@@ -99,6 +101,7 @@ private:
 	int8_t       _index; // not used
 	
 	int16_t _range;
+	uint8_t _rangeWarmupRemaining;
 	int16_t _RXPower;
 	int16_t _FPPower;
 	int16_t _quality;

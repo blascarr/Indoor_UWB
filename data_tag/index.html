@@ -41,7 +41,8 @@
           <thead>
             <tr>
               <th>Short UWB</th>
-              <th>Distancia</th>
+              <th>Dist. UWB</th>
+              <th>Corregida</th>
               <th>RX dBm</th>
               <th>Estado</th>
               <th></th>
@@ -61,7 +62,9 @@
               <th>Nombre</th>
               <th>MAC WiFi</th>
               <th>Short</th>
-              <th>Distancia</th>
+              <th>UWB</th>
+              <th>Corregida</th>
+              <th>Offset</th>
               <th>X</th>
               <th>Y</th>
               <th>Z</th>
@@ -71,20 +74,22 @@
           <tbody id="linked-rows"></tbody>
         </table>
         <p id="linked-empty" class="empty-msg" hidden>Aún no hay anchors en NVS.</p>
+        <p class="hint">Tras vincular, usa <strong>Editar</strong> para ajustar posición (X/Y/Z) y offset UWB (negativo resta a la lectura).</p>
       </section>
 
       <details class="card advanced">
         <summary>Registro manual (avanzado)</summary>
-        <p class="hint">MAC WiFi = 6 bytes (ej. 40:91:51:AE:95:74). No uses la dirección UWB de 8 bytes en el campo WiFi.</p>
+        <p class="hint">Mínimo: nombre + short UWB + posición. MAC WiFi (6 bytes) opcional; dirección UWB (8 bytes) opcional. Si pegas la UWB en el campo WiFi, se corrige automáticamente.</p>
         <form id="add-form">
           <label>Nombre<input name="name" placeholder="Anchor_A" required></label>
-          <label>MAC WiFi (6 bytes)<input name="wifi_mac" placeholder="40:91:51:AE:95:74" required></label>
+          <label>Short UWB<input name="shortAddress" placeholder="0x1550" required></label>
+          <label>MAC WiFi (6 bytes, opcional)<input name="wifi_mac" placeholder="40:91:51:AE:95:74"></label>
           <label>Dirección UWB (8 bytes, opcional)<input name="uwb_address" placeholder="83:17:5B:D5:A9:9A:E2:9D"></label>
-          <label>Short UWB (opcional)<input name="shortAddress" placeholder="0x1234"></label>
           <label>X (m)<input name="x" type="number" step="0.01" value="0"></label>
           <label>Y (m)<input name="y" type="number" step="0.01" value="0"></label>
           <label>Z (m)<input name="z" type="number" step="0.01" value="0"></label>
-          <label>Offset (m)<input name="offset" type="number" step="0.01" value="0"></label>
+          <label>Offset (m)<input name="offset" type="number" step="any" value="-0.2"></label>
+          <p class="hint">Corregida = lectura + offset. Valor negativo resta (p. ej. -0,8 si la UWB lee ~0,8 m de más).</p>
           <div class="row">
             <button type="submit">Guardar en NVS</button>
             <button id="save-and-sync" type="button" class="secondary">Guardar y sync ESP-NOW</button>
@@ -129,7 +134,16 @@
             <code>/api/anchors</code>
             <button type="button" class="secondary try-api" data-method="POST" data-path="/api/anchors" data-body-id="body-post-anchor">Probar</button>
           </div>
-          <textarea id="body-post-anchor" rows="4">{"name":"Anchor_A","wifi_mac":"40:91:51:AE:95:74","uwb_address":"83:17:5B:D5:A9:9A:E2:9D","x":0,"y":0,"z":0,"offset":0}</textarea>
+          <textarea id="body-post-anchor" rows="4">{"name":"Anchor_A","wifi_mac":"40:91:51:AE:95:74","uwb_address":"83:17:5B:D5:A9:9A:E2:9D","x":0,"y":0,"z":0,"offset":-0.2}</textarea>
+        </article>
+
+        <article class="endpoint">
+          <div class="endpoint-head">
+            <span class="method post">POST</span>
+            <code>/api/anchors/offset</code>
+            <button type="button" class="secondary try-api" data-method="POST" data-path="/api/anchors/offset" data-body-id="body-post-offset">Probar</button>
+          </div>
+          <textarea id="body-post-offset" rows="2">{"shortAddress":5456,"offset":-0.2}</textarea>
         </article>
 
         <article class="endpoint">
@@ -147,6 +161,25 @@
       </section>
     </section>
   </main>
+
+  <dialog id="edit-anchor-dialog" class="edit-dialog">
+    <form id="edit-anchor-form" method="dialog">
+      <h2>Editar anchor</h2>
+      <input type="hidden" name="mac" id="edit-mac">
+      <input type="hidden" name="lookupShortAddress" id="edit-lookup-short">
+      <label>Nombre<input name="name" id="edit-name" required></label>
+      <label>Short UWB<input name="shortAddress" id="edit-short" placeholder="0x1550"></label>
+      <label>Dirección UWB (8 bytes, opcional)<input name="uwb_address" id="edit-uwb"></label>
+      <label>X (m)<input name="x" id="edit-x" type="number" step="0.01"></label>
+      <label>Y (m)<input name="y" id="edit-y" type="number" step="0.01"></label>
+      <label>Z (m)<input name="z" id="edit-z" type="number" step="0.01"></label>
+      <label>Offset UWB (m)<input name="offset" id="edit-offset" type="number" step="0.001" placeholder="-0.2"></label>
+      <div class="row">
+        <button type="submit" value="save">Guardar</button>
+        <button type="button" id="edit-cancel" class="secondary">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
 
   <aside id="debug-drawer" class="debug-drawer" aria-label="Registro de actividad">
     <button type="button" id="debug-drawer-toggle" class="debug-drawer-tab" title="Abrir/cerrar debug" aria-expanded="true">

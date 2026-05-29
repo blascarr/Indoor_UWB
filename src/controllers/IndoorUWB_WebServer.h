@@ -69,12 +69,17 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 	}
 
 #if defined(INDOOR_UWB_ROLE_TAG)
-	static float lookupLiveRange(uint16_t shortAddress) {
+	static float lookupLiveRange(uint16_t shortAddress, float *rawOut = nullptr) {
 		const uint8_t n = DW1000Ranging.getNetworkDevicesNumber();
 		for (uint8_t i = 0; i < n; i++) {
 			DW1000Device *dev = DW1000Ranging.getNetworkDeviceAt(i);
 			if (dev && dev->getShortAddress() == shortAddress) {
-				return dev->getRange();
+				const float raw = dev->getRange();
+				if (rawOut != nullptr) {
+					*rawOut = raw;
+				}
+				return IndoorUWB_Storage::getInstance().correctedRange(
+					shortAddress, raw);
 			}
 		}
 		return -1.f;
@@ -91,14 +96,17 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 				configured[i]["uwb_address"] = String(a.DW1000_Address);
 			}
 			configured[i]["shortAddress"] = a.shortAddress;
-			configured[i]["x"] = a.x;
-			configured[i]["y"] = a.y;
-			configured[i]["z"] = a.z;
-			configured[i]["offset"] = a.o;
+			configured[i]["x"] = roundMeters(a.x, 2);
+			configured[i]["y"] = roundMeters(a.y, 2);
+			configured[i]["z"] = roundMeters(a.z, 2);
+			configured[i]["offset"] = roundMeters(a.o, 3);
 			if (a.shortAddress != 0) {
-				float liveRange = lookupLiveRange(a.shortAddress);
+				float rawRange = -1.f;
+				float liveRange =
+					lookupLiveRange(a.shortAddress, &rawRange);
 				if (liveRange >= 0.f) {
 					configured[i]["liveRange"] = liveRange;
+					configured[i]["rawRange"] = rawRange;
 				}
 			}
 		}
@@ -111,7 +119,15 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 				continue;
 			}
 			uwb[i]["shortAddress"] = dev->getShortAddress();
-			uwb[i]["range"] = dev->getRange();
+			const float raw = dev->getRange();
+			uwb[i]["range"] = raw;
+			uwb[i]["rawRange"] = raw;
+			const float corrected =
+				IndoorUWB_Storage::getInstance().correctedRange(
+					dev->getShortAddress(), raw);
+			uwb[i]["correctedRange"] = corrected;
+			uwb[i]["offset"] = IndoorUWB_Storage::getInstance().lookupOffsetByShort(
+				dev->getShortAddress());
 			uwb[i]["rxPower"] = dev->getRXPower();
 			uwb[i]["active"] = !dev->isInactive();
 		}
@@ -213,12 +229,24 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 				}
 				JSONVar body =
 					JSON.parse(String((const char *)data, (unsigned)total));
-				if (JSON.typeof(body) == "undefined" ||
-					(!body.hasOwnProperty("wifi_mac") &&
-					 !body.hasOwnProperty("mac"))) {
-					DUMPSLN("Web POST /api/anchors: wifi_mac required");
+				if (JSON.typeof(body) == "undefined") {
 					request->send(400, "application/json",
-								  "{\"error\":\"wifi_mac required\"}");
+								  "{\"error\":\"invalid json\"}");
+					return;
+				}
+
+				const bool hasMacField = body.hasOwnProperty("wifi_mac") ||
+										 body.hasOwnProperty("mac");
+				const bool hasShortField =
+					body.hasOwnProperty("shortAddress") &&
+					(int)body["shortAddress"] != 0;
+				if (!hasMacField && !hasShortField) {
+					DUMPSLN("Web POST /api/anchors: short o wifi_mac");
+					request->send(
+						400, "application/json",
+						"{\"error\":\"shortAddress or wifi_mac required\","
+						"\"hint\":\"Registro manual: short UWB + posicion. "
+						"MAC WiFi opcional (se obtiene con ESP-NOW).\"}");
 					return;
 				}
 
@@ -228,46 +256,43 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 					macField = (const char *)body["wifi_mac"];
 				} else if (body.hasOwnProperty("mac")) {
 					macField = (const char *)body["mac"];
-				} else {
-					request->send(400, "application/json",
-								  "{\"error\":\"wifi_mac required\"}");
-					return;
 				}
 				macField.toUpperCase();
 				macField.trim();
 
-				if (AnchorList::isUwbAddressFormat(macField.c_str())) {
-					AnchorList::parseUwbAddress(
-						macField.c_str(), entry.DW1000_Address,
-						sizeof(entry.DW1000_Address));
-					request->send(
-						400, "application/json",
-						"{\"error\":\"invalid_wifi_mac\","
-						"\"hint\":\"Esa es la direccion UWB (8 bytes). "
-						"Usa la MAC WiFi del anchor (6 bytes, ej. "
-						"40:91:51:AE:95:74). "
-						"Opcional: campo uwb_address para la de 8 bytes.\"}");
-					return;
-				}
-
-				uint8_t macBytes[6];
-				if (!AnchorList::parseMac(macField.c_str(), macBytes)) {
-					request->send(
-						400, "application/json",
-						"{\"error\":\"invalid_wifi_mac\","
-						"\"hint\":\"Formato esperado: AA:BB:CC:DD:EE:FF "
-						"(6 bytes WiFi)\"}");
-					return;
-				}
-				AnchorList::formatMac(macBytes, entry.MAC_Address,
-									  sizeof(entry.MAC_Address));
-
+				String uwbField;
 				if (body.hasOwnProperty("uwb_address")) {
-					String uwb = (const char *)body["uwb_address"];
-					uwb.toUpperCase();
-					AnchorList::parseUwbAddress(uwb.c_str(),
-												entry.DW1000_Address,
-												sizeof(entry.DW1000_Address));
+					uwbField = (const char *)body["uwb_address"];
+					uwbField.toUpperCase();
+					uwbField.trim();
+				}
+
+				if (macField.length() > 0 &&
+					AnchorList::isUwbAddressFormat(macField.c_str())) {
+					if (uwbField.length() == 0) {
+						uwbField = macField;
+					}
+					macField = "";
+				}
+
+				if (macField.length() > 0) {
+					uint8_t macBytes[6];
+					if (!AnchorList::parseMac(macField.c_str(), macBytes)) {
+						request->send(
+							400, "application/json",
+							"{\"error\":\"invalid_wifi_mac\","
+							"\"hint\":\"Formato esperado: AA:BB:CC:DD:EE:FF "
+							"(6 bytes WiFi)\"}");
+						return;
+					}
+					AnchorList::formatMac(macBytes, entry.MAC_Address,
+										  sizeof(entry.MAC_Address));
+				}
+
+				if (uwbField.length() > 0) {
+					AnchorList::parseUwbAddress(
+						uwbField.c_str(), entry.DW1000_Address,
+						sizeof(entry.DW1000_Address));
 				}
 				if (body.hasOwnProperty("shortAddress")) {
 					entry.shortAddress = (uint16_t)(int)body["shortAddress"];
@@ -277,21 +302,30 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 							sizeof(entry.name) - 1);
 				}
 				if (body.hasOwnProperty("x")) {
-					entry.x = (float)(double)body["x"];
+					entry.x = roundMeters((float)(double)body["x"], 2);
 				}
 				if (body.hasOwnProperty("y")) {
-					entry.y = (float)(double)body["y"];
+					entry.y = roundMeters((float)(double)body["y"], 2);
 				}
 				if (body.hasOwnProperty("z")) {
-					entry.z = (float)(double)body["z"];
+					entry.z = roundMeters((float)(double)body["z"], 2);
 				}
 				if (body.hasOwnProperty("offset")) {
-					entry.o = (float)(double)body["offset"];
+					entry.o = roundMeters((float)(double)body["offset"], 3);
+				} else {
+					entry.o = UWB_DEFAULT_OFFSET_M;
+				}
+
+				if (entry.shortAddress == 0 && entry.MAC_Address[0] == '\0') {
+					request->send(
+						400, "application/json",
+						"{\"error\":\"shortAddress or wifi_mac required\"}");
+					return;
 				}
 
 				AnchorList &list =
 					IndoorUWB_Storage::getInstance().anchorList;
-				if (!list.upsertAnchor(entry)) {
+				if (!list.upsertAnchorEntry(entry)) {
 					DUMPSLN("Web POST /api/anchors: lista llena");
 					request->send(507, "application/json",
 								  "{\"error\":\"anchor list full\"}");
@@ -303,20 +337,40 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 				JSONVar resp;
 				resp["ok"] = true;
 				resp["mac"] = String(entry.MAC_Address);
+				resp["shortAddress"] = entry.shortAddress;
+				resp["name"] = String(entry.name);
 				request->send(200, "application/json", JSON.stringify(resp));
 			});
 
 		server.on("/api/anchors", HTTP_DELETE,
 				  [](AsyncWebServerRequest *request) {
+					  AnchorList &list =
+						  IndoorUWB_Storage::getInstance().anchorList;
+					  if (request->hasParam("short")) {
+						  const uint16_t shortAddr = (uint16_t)request
+														 ->getParam("short")
+														 ->value()
+														 .toInt();
+						  if (shortAddr == 0 ||
+							  !list.removeAnchorByShort(shortAddr)) {
+							  request->send(404, "application/json",
+											"{\"error\":\"not found\"}");
+							  return;
+						  }
+						  IndoorUWB_Storage::getInstance().saveAnchorList();
+						  DUMPF("Web: anchor eliminado short=0x%04X\n",
+								shortAddr);
+						  request->send(200, "application/json",
+										"{\"ok\":true}");
+						  return;
+					  }
 					  if (!request->hasParam("mac")) {
 						  request->send(400, "application/json",
-										"{\"error\":\"mac required\"}");
+										"{\"error\":\"mac or short required\"}");
 						  return;
 					  }
 					  String mac = request->getParam("mac")->value();
 					  mac.toUpperCase();
-					  AnchorList &list =
-						  IndoorUWB_Storage::getInstance().anchorList;
 					  if (!list.removeAnchorByMac(mac.c_str())) {
 						  request->send(404, "application/json",
 										"{\"error\":\"not found\"}");
@@ -328,17 +382,178 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 				  });
 
 		server.on(
+			"/api/anchors/offset", HTTP_POST,
+			[](AsyncWebServerRequest *request) {
+				if (request->contentLength() == 0) {
+					request->send(400, "application/json",
+								  "{\"error\":\"missing body\"}");
+				}
+			},
+			nullptr,
+			[](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+			   size_t index, size_t total) {
+				if (index + len < total) {
+					return;
+				}
+				if (total == 0) {
+					request->send(400, "application/json",
+								  "{\"error\":\"missing body\"}");
+					return;
+				}
+				JSONVar body =
+					JSON.parse(String((const char *)data, (unsigned)total));
+				if (JSON.typeof(body) == "undefined" ||
+					!body.hasOwnProperty("offset")) {
+					request->send(400, "application/json",
+								  "{\"error\":\"offset required\"}");
+					return;
+				}
+				const float offset =
+					roundMeters((float)(double)body["offset"], 3);
+				IndoorUWB_Storage &storage =
+					IndoorUWB_Storage::getInstance();
+				bool ok = false;
+				if (body.hasOwnProperty("mac")) {
+					String mac = (const char *)body["mac"];
+					mac.toUpperCase();
+					mac.trim();
+					ok = storage.updateAnchorOffset(mac.c_str(), offset);
+				} else if (body.hasOwnProperty("shortAddress")) {
+					const uint16_t shortAddr =
+						(uint16_t)(int)body["shortAddress"];
+					ok = storage.updateAnchorOffsetByShort(shortAddr, offset);
+				} else {
+					request->send(400, "application/json",
+								  "{\"error\":\"mac or shortAddress required\"}");
+					return;
+				}
+				if (!ok) {
+					request->send(404, "application/json",
+								  "{\"error\":\"anchor not found in NVS\"}");
+					return;
+				}
+				DUMPF("Web: offset actualizado = %+.3f m\n", offset);
+				JSONVar resp;
+				resp["ok"] = true;
+				resp["offset"] = offset;
+				request->send(200, "application/json", JSON.stringify(resp));
+			});
+
+		server.on(
+			"/api/anchors", HTTP_PUT,
+			[](AsyncWebServerRequest *request) {
+				if (request->contentLength() == 0) {
+					request->send(400, "application/json",
+								  "{\"error\":\"missing body\"}");
+				}
+			},
+			nullptr,
+			[](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+			   size_t index, size_t total) {
+				if (index + len < total) {
+					return;
+				}
+				if (total == 0) {
+					request->send(400, "application/json",
+								  "{\"error\":\"missing body\"}");
+					return;
+				}
+				JSONVar body =
+					JSON.parse(String((const char *)data, (unsigned)total));
+				if (JSON.typeof(body) == "undefined") {
+					request->send(400, "application/json",
+								  "{\"error\":\"invalid json\"}");
+					return;
+				}
+
+				String mac;
+				if (body.hasOwnProperty("mac")) {
+					mac = (const char *)body["mac"];
+					mac.toUpperCase();
+					mac.trim();
+				}
+				uint16_t lookupShort = 0;
+				if (body.hasOwnProperty("lookupShortAddress")) {
+					lookupShort = (uint16_t)(int)body["lookupShortAddress"];
+				}
+				if (mac.length() == 0 && lookupShort == 0) {
+					request->send(
+						400, "application/json",
+						"{\"error\":\"mac or lookupShortAddress required\"}");
+					return;
+				}
+
+				AnchorList &list =
+					IndoorUWB_Storage::getInstance().anchorList;
+				Anchor *existing = nullptr;
+				if (mac.length() > 0) {
+					existing = list.searchAnchorByMacStr(mac.c_str());
+				}
+				if (existing == nullptr && lookupShort != 0) {
+					existing = list.searchAnchorByShortAddress(lookupShort);
+				}
+				if (existing == nullptr) {
+					request->send(404, "application/json",
+								  "{\"error\":\"anchor not found\"}");
+					return;
+				}
+
+				Anchor patch = *existing;
+				if (body.hasOwnProperty("name")) {
+					strncpy(patch.name, (const char *)body["name"],
+							sizeof(patch.name) - 1);
+				}
+				if (body.hasOwnProperty("uwb_address")) {
+					String uwb = (const char *)body["uwb_address"];
+					uwb.toUpperCase();
+					AnchorList::parseUwbAddress(uwb.c_str(), patch.DW1000_Address,
+												sizeof(patch.DW1000_Address));
+				}
+				if (body.hasOwnProperty("shortAddress")) {
+					patch.shortAddress = (uint16_t)(int)body["shortAddress"];
+				}
+				if (body.hasOwnProperty("x")) {
+					patch.x = roundMeters((float)(double)body["x"], 2);
+				}
+				if (body.hasOwnProperty("y")) {
+					patch.y = roundMeters((float)(double)body["y"], 2);
+				}
+				if (body.hasOwnProperty("z")) {
+					patch.z = roundMeters((float)(double)body["z"], 2);
+				}
+				if (body.hasOwnProperty("offset")) {
+					patch.o = roundMeters((float)(double)body["offset"], 3);
+				}
+
+				IndoorUWB_Storage &storage =
+					IndoorUWB_Storage::getInstance();
+				bool ok = false;
+				if (mac.length() > 0 &&
+					list.searchAnchorByMacStr(mac.c_str()) != nullptr) {
+					ok = storage.mergeAnchorByMac(mac.c_str(), patch);
+				} else if (lookupShort != 0) {
+					ok = storage.mergeAnchorByShort(lookupShort, patch);
+				}
+				if (!ok) {
+					request->send(500, "application/json",
+								  "{\"error\":\"update failed\"}");
+					return;
+				}
+				request->send(200, "application/json", "{\"ok\":true}");
+			});
+
+		server.on(
 			"/api/sync", HTTP_POST,
 			[](AsyncWebServerRequest *request) {
 				uint16_t shortAddr = 0;
 				if (parseSyncShortParam(request, shortAddr)) {
-					IndoorUWB_ESPNow::requestAnchorSync(shortAddr);
-					sendSyncResponse(request, shortAddr);
+					if (!handleSyncRequest(request, shortAddr)) {
+						return;
+					}
 					return;
 				}
 				if (request->contentLength() == 0) {
-					IndoorUWB_ESPNow::requestAnchorSync(0);
-					sendSyncResponse(request, 0);
+					handleSyncRequest(request, 0);
 				}
 			},
 			nullptr,
@@ -357,9 +572,36 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 						shortAddr = (uint16_t)(int)body["shortAddress"];
 					}
 				}
-				IndoorUWB_ESPNow::requestAnchorSync(shortAddr);
-				sendSyncResponse(request, shortAddr);
+				handleSyncRequest(request, shortAddr);
 			});
+	}
+
+	static bool handleSyncRequest(AsyncWebServerRequest *request,
+								  uint16_t shortAddr) {
+		if (WiFi.status() != WL_CONNECTED) {
+			JSONVar err;
+			err["ok"] = false;
+			err["error"] = "wifi_disconnected";
+			err["hint"] =
+				"Tag sin WiFi. ESP-NOW requiere STA conectado al AP.";
+			AsyncWebServerResponse *response = request->beginResponse(
+				503, "application/json", JSON.stringify(err));
+			addCors(response);
+			request->send(response);
+			return false;
+		}
+		if (!IndoorUWB_ESPNow::requestAnchorSync(shortAddr)) {
+			JSONVar err;
+			err["ok"] = false;
+			err["error"] = "espnow_failed";
+			AsyncWebServerResponse *response = request->beginResponse(
+				503, "application/json", JSON.stringify(err));
+			addCors(response);
+			request->send(response);
+			return false;
+		}
+		sendSyncResponse(request, shortAddr);
+		return true;
 	}
 
 	static bool parseSyncShortParam(AsyncWebServerRequest *request,
@@ -395,15 +637,44 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 #if defined(INDOOR_UWB_ROLE_ANCHOR)
 	String positionToJson() {
 		const AnchorPosition &p = IndoorUWB_Storage::getInstance().position;
+		IndoorUWB_Storage &storage = IndoorUWB_Storage::getInstance();
 		JSONVar info;
 		info["role"] = "anchor";
 		info["name"] = DEVICE_NAME;
 		info["mac"] = WiFi.macAddress();
 		info["ip"] = WiFi.localIP().toString();
+		info["uwb_address"] = storage.getUwbAddress();
 		info["x"] = p.x;
 		info["y"] = p.y;
 		info["z"] = p.z;
 		info["offset"] = p.offset;
+		uint8_t bytes[8];
+		JSONVar byteArr;
+		if (storage.parseUwbAddressToBytes(bytes)) {
+			for (int i = 0; i < 8; i++) {
+				char hex[3];
+				snprintf(hex, sizeof(hex), "%02X", bytes[i]);
+				byteArr[i] = hex;
+			}
+		}
+		info["bytes"] = byteArr;
+		return JSON.stringify(info);
+	}
+
+	String uwbAddressToJson() {
+		IndoorUWB_Storage &storage = IndoorUWB_Storage::getInstance();
+		JSONVar info;
+		info["uwb_address"] = storage.getUwbAddress();
+		uint8_t bytes[8];
+		JSONVar byteArr;
+		if (storage.parseUwbAddressToBytes(bytes)) {
+			for (int i = 0; i < 8; i++) {
+				char hex[3];
+				snprintf(hex, sizeof(hex), "%02X", bytes[i]);
+				byteArr[i] = hex;
+			}
+		}
+		info["bytes"] = byteArr;
 		return JSON.stringify(info);
 	}
 
@@ -472,6 +743,70 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 			IndoorUWB_ESPNow::sendPositionSync();
 			request->send(200, "application/json", "{\"ok\":true}");
 		});
+
+		server.on("/api/uwb-address", HTTP_GET,
+				  [this](AsyncWebServerRequest *request) {
+					  AsyncWebServerResponse *response = request->beginResponse(
+						  200, "application/json", uwbAddressToJson());
+					  addCors(response);
+					  request->send(response);
+				  });
+
+		server.on(
+			"/api/uwb-address", HTTP_POST,
+			[](AsyncWebServerRequest *request) {
+				if (request->contentLength() == 0) {
+					request->send(400, "application/json",
+								  "{\"error\":\"missing body\"}");
+				}
+			},
+			nullptr,
+			[](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+			   size_t index, size_t total) {
+				if (index + len < total) {
+					return;
+				}
+				DUMPF("Web POST /api/uwb-address (%u bytes)\n", (unsigned)total);
+				if (total == 0) {
+					request->send(400, "application/json",
+								  "{\"error\":\"missing body\"}");
+					return;
+				}
+				JSONVar body =
+					JSON.parse(String((const char *)data, (unsigned)total));
+				if (JSON.typeof(body) == "undefined") {
+					request->send(400, "application/json",
+								  "{\"error\":\"invalid json\"}");
+					return;
+				}
+				if (JSON.typeof(body["bytes"]) == "undefined") {
+					request->send(400, "application/json",
+								  "{\"error\":\"bytes required\"}");
+					return;
+				}
+				uint8_t uwbBytes[8];
+				for (int i = 0; i < 8; i++) {
+					if (JSON.typeof(body["bytes"][i]) == "undefined") {
+						request->send(400, "application/json",
+									  "{\"error\":\"8 hex bytes required\"}");
+						return;
+					}
+					String hex = (const char *)body["bytes"][i];
+					hex.trim();
+					hex.toUpperCase();
+					if (!AnchorList::parseUwbByteHex(hex.c_str(), &uwbBytes[i])) {
+						request->send(400, "application/json",
+									  "{\"error\":\"invalid hex byte\"}");
+						return;
+					}
+				}
+				IndoorUWB_Storage::getInstance().saveUwbAddressFromBytes(
+					uwbBytes);
+				request->send(200, "application/json",
+							  "{\"ok\":true,\"reboot\":true}");
+				delay(400);
+				ESP.restart();
+			});
 	}
 #endif
 };

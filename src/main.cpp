@@ -12,7 +12,4 @@ void setup() {
 
 void loop() {
 	manager.update();
-#if defined(INDOOR_UWB_ROLE_ANCHOR)
-	IndoorUWB_DW1000::getInstance().loop();
-#endif
 }

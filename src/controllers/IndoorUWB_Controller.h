@@ -16,6 +16,9 @@ class IndoorUWB_Controller : public TickerFree<> {
 
 	virtual void begin() {}
 
+	/** Avanza el ticker no bloqueante; llamar desde manager.update() cada loop(). */
+	void pollTicker() { TickerFree::update(); }
+
 	void setCallback(CallbackType cb, uint32_t timer = 1000,
 					 uint32_t repeat = 0, resolution_t resolution = MICROS) {
 		callback = combinedCallback(cb);

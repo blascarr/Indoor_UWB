@@ -15,6 +15,7 @@
 
     <nav class="main-nav" aria-label="Secciones">
       <button type="button" class="nav-btn active" data-panel="position">Posición</button>
+      <button type="button" class="nav-btn" data-panel="uwb">Dirección UWB</button>
       <button type="button" class="nav-btn" data-panel="api">API REST</button>
     </nav>
 
@@ -25,13 +26,37 @@
           <label>X (m)<input name="x" type="number" step="0.01" required></label>
           <label>Y (m)<input name="y" type="number" step="0.01" required></label>
           <label>Z (m)<input name="z" type="number" step="0.01" required></label>
-          <label>Offset (m)<input name="offset" type="number" step="0.01" value="0"></label>
+          <label>Offset UWB (m)
+            <input name="offset" type="number" step="any" value="-0.2">
+          </label>
+          <p class="hint">
+            Distancia corregida = lectura UWB + offset. Usa valores negativos para restar
+            (la UWB suele leer de más).
+          </p>
           <div class="row">
             <button type="submit">Guardar</button>
             <button id="sync" type="button" class="secondary">Sincronizar con Tag</button>
           </div>
         </form>
         <p id="feedback"></p>
+      </section>
+    </section>
+
+    <section id="panel-uwb" class="panel" hidden>
+      <section class="card">
+        <h2>Dirección UWB (EUI, 8 bytes)</h2>
+        <p class="hint">
+          Identidad del módulo DW1000. Debe ser única en cada anchor.
+          Los dos primeros bytes definen la dirección corta (short) en el ranging.
+        </p>
+        <p id="uwb-address-preview" class="uwb-preview">—</p>
+        <form id="uwb-form">
+          <div class="uwb-bytes" id="uwb-bytes" aria-label="Bytes de dirección UWB"></div>
+          <div class="row">
+            <button type="submit">Guardar dirección</button>
+          </div>
+        </form>
+        <p id="uwb-feedback"></p>
       </section>
     </section>
 
@@ -46,7 +71,7 @@
             <code>/api/status</code>
             <button type="button" class="secondary try-api" data-method="GET" data-path="/api/status">Probar</button>
           </div>
-          <p class="endpoint-desc">Estado del anchor: nombre, MAC, IP y posición.</p>
+          <p class="endpoint-desc">Estado del anchor: nombre, MAC, IP, posición y dirección UWB.</p>
         </article>
 
         <article class="endpoint">
@@ -55,7 +80,16 @@
             <code>/api/position</code>
             <button type="button" class="secondary try-api" data-method="GET" data-path="/api/position">Probar</button>
           </div>
-          <p class="endpoint-desc">Misma información que status (coordenadas persistidas).</p>
+          <p class="endpoint-desc">Coordenadas persistidas e identidad UWB.</p>
+        </article>
+
+        <article class="endpoint">
+          <div class="endpoint-head">
+            <span class="method get">GET</span>
+            <code>/api/uwb-address</code>
+            <button type="button" class="secondary try-api" data-method="GET" data-path="/api/uwb-address">Probar</button>
+          </div>
+          <p class="endpoint-desc">Dirección UWB actual (8 bytes hex).</p>
         </article>
 
         <article class="endpoint">
@@ -65,7 +99,17 @@
             <button type="button" class="secondary try-api" data-method="POST" data-path="/api/position" data-body-id="body-post-position">Probar</button>
           </div>
           <p class="endpoint-desc">Guardar posición en NVS (JSON).</p>
-          <textarea id="body-post-position" rows="3">{"x":0,"y":0,"z":0,"offset":0}</textarea>
+          <textarea id="body-post-position" rows="3">{"x":0,"y":0,"z":0,"offset":-0.2}</textarea>
+        </article>
+
+        <article class="endpoint">
+          <div class="endpoint-head">
+            <span class="method post">POST</span>
+            <code>/api/uwb-address</code>
+            <button type="button" class="secondary try-api" data-method="POST" data-path="/api/uwb-address" data-body-id="body-post-uwb">Probar</button>
+          </div>
+          <p class="endpoint-desc">Guardar dirección UWB y reiniciar el anchor.</p>
+          <textarea id="body-post-uwb" rows="3">{"bytes":["84","15","5B","D5","A9","9A","E2","9E"]}</textarea>
         </article>
 
         <article class="endpoint">

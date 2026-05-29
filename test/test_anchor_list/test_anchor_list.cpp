@@ -57,6 +57,24 @@ static void test_upsert_overwrites_position() {
 	TEST_ASSERT_EQUAL_UINT16(5, list.list[0].shortAddress);
 }
 
+static void test_upsert_by_short_without_mac() {
+	AnchorList list;
+	Anchor a = makeTestAnchor("B", 0x1550, 10.f, 0.f, 0.f);
+	a.MAC_Address[0] = '\0';
+	TEST_ASSERT_TRUE(list.upsertAnchorEntry(a));
+	TEST_ASSERT_EQUAL(1, list.devices);
+	TEST_ASSERT_EQUAL_UINT16(0x1550, list.list[0].shortAddress);
+	TEST_ASSERT_FLOAT_WITHIN(0.001f, 10.f, list.list[0].x);
+
+	Anchor updated = a;
+	updated.x = 12.f;
+	updated.o = 0.2f;
+	TEST_ASSERT_TRUE(list.upsertAnchorEntry(updated));
+	TEST_ASSERT_EQUAL(1, list.devices);
+	TEST_ASSERT_FLOAT_WITHIN(0.001f, 12.f, list.list[0].x);
+	TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.2f, list.list[0].o);
+}
+
 static void test_remove_anchor_by_name() {
 	AnchorList list;
 	list.addAnchor(makeTestAnchor("North", 1, 0.f, 5.f, 0.f));
@@ -111,6 +129,7 @@ void setup() {
 	RUN_TEST(test_search_by_short_address);
 	RUN_TEST(test_search_by_mac);
 	RUN_TEST(test_upsert_overwrites_position);
+	RUN_TEST(test_upsert_by_short_without_mac);
 	RUN_TEST(test_remove_anchor_by_name);
 	RUN_TEST(test_remove_anchor_by_mac);
 	RUN_TEST(test_anchor_list_capacity_limit);

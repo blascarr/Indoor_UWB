@@ -4,6 +4,17 @@
 #include "../config.h"
 #include <Arduino.h>
 
+inline float roundMeters(float value, int decimals) {
+	if (decimals < 0) {
+		return value;
+	}
+	double factor = 1.0;
+	for (int i = 0; i < decimals; i++) {
+		factor *= 10.0;
+	}
+	return (float)(round((double)value * factor) / factor);
+}
+
 struct Anchor {
 	char name[10];
 	char DW1000_Address[20];
@@ -68,6 +79,25 @@ class AnchorList {
 					  &v[4], &v[5], &v[6], &v[7]) == 8;
 	}
 
+	static void formatUwbAddressFromBytes(const uint8_t bytes[8], char *out,
+										  size_t outLen) {
+		snprintf(out, outLen,
+				 "%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X", bytes[0], bytes[1],
+				 bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7]);
+	}
+
+	static bool parseUwbByteHex(const char *str, uint8_t *out) {
+		if (str == nullptr || str[0] == '\0') {
+			return false;
+		}
+		unsigned int value = 0;
+		if (sscanf(str, "%x", &value) != 1 || value > 0xFF) {
+			return false;
+		}
+		*out = (uint8_t)value;
+		return true;
+	}
+
 	static bool macEquals(const char *macStr, const uint8_t mac[6]) {
 		uint8_t parsed[6];
 		if (!parseMac(macStr, parsed)) {
@@ -77,6 +107,15 @@ class AnchorList {
 	}
 
 	Anchor *searchAnchorByShortAddress(uint16_t anchorAdd) {
+		for (int i = 0; i < devices; i++) {
+			if (list[i].shortAddress == anchorAdd) {
+				return &list[i];
+			}
+		}
+		return nullptr;
+	}
+
+	const Anchor *findAnchorByShortAddress(uint16_t anchorAdd) const {
 		for (int i = 0; i < devices; i++) {
 			if (list[i].shortAddress == anchorAdd) {
 				return &list[i];
@@ -134,6 +173,45 @@ class AnchorList {
 		return true;
 	}
 
+	/** Inserta o actualiza por short UWB y/o MAC WiFi (registro manual o ESP-NOW). */
+	bool upsertAnchorEntry(const Anchor &newAnchor) {
+		if (newAnchor.shortAddress != 0) {
+			Anchor *byShort =
+				searchAnchorByShortAddress(newAnchor.shortAddress);
+			if (byShort != nullptr) {
+				char prevMac[sizeof(byShort->MAC_Address)];
+				strncpy(prevMac, byShort->MAC_Address, sizeof(prevMac));
+				prevMac[sizeof(prevMac) - 1] = '\0';
+				uint16_t prevShort = byShort->shortAddress;
+				memcpy(byShort, &newAnchor, sizeof(Anchor));
+				byShort->shortAddress = prevShort;
+				if (newAnchor.MAC_Address[0] == '\0' && prevMac[0] != '\0') {
+					strncpy(byShort->MAC_Address, prevMac,
+							sizeof(byShort->MAC_Address) - 1);
+				}
+				return true;
+			}
+		}
+
+		uint8_t mac[6];
+		if (newAnchor.MAC_Address[0] != '\0' &&
+			parseMac(newAnchor.MAC_Address, mac)) {
+			return upsertAnchor(newAnchor);
+		}
+
+		if (newAnchor.shortAddress != 0) {
+			if (devices >= EEPROM_ANCHORLIST_SIZE) {
+				DUMPSLN("Anchor list full, cannot auto-register");
+				return false;
+			}
+			addAnchor(newAnchor);
+			return true;
+		}
+
+		DUMPSLN("upsertAnchorEntry: hace falta short UWB o MAC WiFi valida");
+		return false;
+	}
+
 	bool updateShortAddress(const uint8_t mac[6], uint16_t shortAddr) {
 		Anchor *found = searchAnchorByMac(mac);
 		if (found == nullptr) {
@@ -182,6 +260,20 @@ class AnchorList {
 		return false;
 	}
 
+	bool removeAnchorByShort(uint16_t shortAddr) {
+		if (shortAddr == 0) {
+			return false;
+		}
+		for (int i = 0; i < devices; i++) {
+			if (list[i].shortAddress == shortAddr) {
+				removeAnchorAt(i);
+				devices--;
+				return true;
+			}
+		}
+		return false;
+	}
+
 	void cleanList() { devices = 0; }
 };
 
@@ -190,7 +282,7 @@ struct AnchorPosition {
 	float x = 0.f;
 	float y = 0.f;
 	float z = 0.f;
-	float offset = 0.f;
+	float offset = UWB_DEFAULT_OFFSET_M;
 };
 
 #define ESPNOW_MAGIC 0xA5
