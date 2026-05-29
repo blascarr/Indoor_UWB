@@ -17,6 +17,7 @@
 
     <nav class="main-nav" aria-label="Secciones">
       <button type="button" class="nav-btn active" data-panel="discovery">Descubrimiento</button>
+      <button type="button" class="nav-btn" data-panel="map-links">Mapa</button>
       <button type="button" class="nav-btn" data-panel="api">API REST</button>
       <button type="button" id="debug-drawer-nav" class="nav-btn nav-debug">Debug</button>
     </nav>
@@ -98,6 +99,27 @@
       </details>
     </section>
 
+    <section id="panel-map-links" class="panel" hidden>
+      <section class="card card-highlight">
+        <h2>Visualización de posición</h2>
+        <p class="hint">Datos en vivo desde <code>GET /api/map</code>. Configura anchors con coordenadas X/Y/Z respecto al origen (0,0,0).</p>
+        <div class="map-link-grid">
+          <a class="map-link-card" href="/map/">
+            <strong>Mapa 2D local</strong>
+            <span>Sin CDN · Canvas nativo · funciona offline en LAN</span>
+          </a>
+          <a class="map-link-card" href="/map2D/">
+            <strong>Mapa 2D CDN</strong>
+            <span>Konva.js · requiere internet en el cliente</span>
+          </a>
+          <a class="map-link-card" href="/map3D/" id="portal-map-3d">
+            <strong>Mapa 3D CDN</strong>
+            <span>Three.js · rotación 3 ejes · requiere internet</span>
+          </a>
+        </div>
+      </section>
+    </section>
+
     <section id="panel-api" class="panel" hidden>
       <section class="card">
         <h2>Endpoints disponibles (Tag)</h2>
@@ -110,6 +132,15 @@
             <button type="button" class="secondary try-api" data-method="GET" data-path="/api/debug">Probar</button>
           </div>
           <p class="endpoint-desc">Estado UWB/WiFi y lista de dispositivos en ranging.</p>
+        </article>
+
+        <article class="endpoint">
+          <div class="endpoint-head">
+            <span class="method get">GET</span>
+            <code>/api/map</code>
+            <button type="button" class="secondary try-api" data-method="GET" data-path="/api/map">Probar</button>
+          </div>
+          <p class="endpoint-desc">Anchors, origen, bounds y posición trilaterada del tag.</p>
         </article>
 
         <article class="endpoint">

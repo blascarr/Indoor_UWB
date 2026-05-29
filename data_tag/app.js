@@ -666,7 +666,13 @@ async function refresh(options = {}) {
       `MAC ${status.mac} · IP ${status.ip}` +
       ` · WiFi ${status.wifi_connected ? 'OK' : 'NO'}` +
       ` · UWB en red: ${status.uwb_count ?? uwb_count}` +
-      ` · NVS: ${configured.length}`;
+      ` · NVS: ${configured.length}` +
+      (status.trilateration_mode ? ` · Tri: ${status.trilateration_mode}` : '');
+
+    const map3dLink = document.getElementById('portal-map-3d');
+    if (map3dLink && status.trilateration_mode !== '3d') {
+      map3dLink.hidden = true;
+    }
 
     renderDiscovered(uwb, configured);
     renderLinked(configured, { liveOnly: silent });

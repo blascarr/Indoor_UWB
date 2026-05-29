@@ -80,6 +80,27 @@ static void test_distances_are_consistent_with_solution() {
 	TEST_ASSERT_FLOAT_WITHIN(0.25f, d[3], distance3(result, P[3]));
 }
 
+static void test_trilateration2d_recovers_point() {
+	Vector3D P[3];
+	setVec3(P[0], 0.f, 0.f, 0.f);
+	setVec3(P[1], 4.f, 0.f, 0.f);
+	setVec3(P[2], 0.f, 4.f, 0.f);
+
+	Vector3D truth;
+	setVec3(truth, 1.f, 2.f, 0.f);
+
+	float d[3];
+	d[0] = distance3(truth, P[0]);
+	d[1] = distance3(truth, P[1]);
+	d[2] = distance3(truth, P[2]);
+
+	Vector3D result;
+	TEST_ASSERT_TRUE(trilateration2D(P, d, result));
+
+	TEST_ASSERT_FLOAT_WITHIN(0.2f, 1.f, result(0, 0));
+	TEST_ASSERT_FLOAT_WITHIN(0.2f, 2.f, result(1, 0));
+}
+
 void setup() {
 	delay(200);
 	UNITY_BEGIN();
@@ -87,6 +108,7 @@ void setup() {
 	RUN_TEST(test_trilateration_recovers_interior_point);
 	RUN_TEST(test_trilateration_on_anchor_plane);
 	RUN_TEST(test_distances_are_consistent_with_solution);
+	RUN_TEST(test_trilateration2d_recovers_point);
 	UNITY_END();
 }
 

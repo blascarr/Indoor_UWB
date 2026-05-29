@@ -1,0 +1,156 @@
+/* Estilos compartidos para páginas de mapa. */
+
+.map-page {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: system-ui, sans-serif;
+}
+
+.map-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  flex-shrink: 0;
+}
+
+.map-header h1 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.map-header .status {
+  color: #94a3b8;
+  font-size: 0.88rem;
+  flex: 1;
+  min-width: 12rem;
+}
+
+.map-nav {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.map-nav a {
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  background: #334155;
+  color: #e2e8f0;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.map-nav a.active {
+  background: #2563eb;
+}
+
+.map-nav a:hover {
+  opacity: 0.9;
+}
+
+.map-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.map-toolbar button {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.4rem 0.65rem;
+  background: #475569;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.map-toolbar button.primary {
+  background: #2563eb;
+}
+
+.map-stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.map-stage canvas,
+.map-stage .konva-root,
+.map-stage .three-root {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.map-banner {
+  padding: 0.5rem 1rem;
+  background: #422006;
+  color: #fde68a;
+  font-size: 0.85rem;
+}
+
+.map-banner.hidden {
+  display: none;
+}
+
+.map-legend {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+.map-legend span {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
+
+.map-legend .dot-anchor {
+  background: #3b82f6;
+}
+
+.map-legend .dot-tag {
+  background: #22c55e;
+}
+
+.map-legend .dot-origin {
+  background: #fbbf24;
+}
+
+.map-header .checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.map-header .checkbox-label input {
+  width: auto;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .map-header h1 {
+    width: 100%;
+  }
+}

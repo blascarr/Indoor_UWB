@@ -9,6 +9,7 @@
 
 #include "../config.h"
 #include "../models/AnchorModel.h"
+#include "../models/TagPosition.h"
 #include "IndoorUWB_Controller.h"
 #include "IndoorUWB_DW1000.h"
 #include "IndoorUWB_ESPNow.h"
@@ -139,6 +140,120 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 		return JSON.stringify(root);
 	}
 
+	String mapToJson() {
+		AnchorList &list = IndoorUWB_Storage::getInstance().anchorList;
+		JSONVar anchors;
+		float minX = 0.f, maxX = 0.f, minY = 0.f, maxY = 0.f;
+		bool boundsInit = false;
+
+		for (int i = 0; i < list.devices; i++) {
+			const Anchor &a = list.list[i];
+			anchors[i]["name"] = String(a.name);
+			anchors[i]["shortAddress"] = a.shortAddress;
+			anchors[i]["x"] = roundMeters(a.x, 2);
+			anchors[i]["y"] = roundMeters(a.y, 2);
+			anchors[i]["z"] = roundMeters(a.z, 2);
+			anchors[i]["offset"] = roundMeters(a.o, 3);
+			if (a.MAC_Address[0] != '\0') {
+				anchors[i]["mac"] = String(a.MAC_Address);
+			}
+			const bool atOrigin =
+				fabs(a.x) < 0.01f && fabs(a.y) < 0.01f && fabs(a.z) < 0.01f;
+			anchors[i]["isOrigin"] = atOrigin;
+
+			float rawRange = -1.f;
+			const float liveRange =
+				a.shortAddress != 0
+					? lookupLiveRange(a.shortAddress, &rawRange)
+					: -1.f;
+			anchors[i]["active"] = liveRange >= 0.f;
+			if (liveRange >= 0.f) {
+				anchors[i]["liveRange"] = liveRange;
+				anchors[i]["rawRange"] = rawRange;
+			}
+
+			if (!boundsInit) {
+				minX = maxX = a.x;
+				minY = maxY = a.y;
+				boundsInit = true;
+			} else {
+				if (a.x < minX) {
+					minX = a.x;
+				}
+				if (a.x > maxX) {
+					maxX = a.x;
+				}
+				if (a.y < minY) {
+					minY = a.y;
+				}
+				if (a.y > maxY) {
+					maxY = a.y;
+				}
+			}
+		}
+
+		if (gTagPosition.valid) {
+			const float px = gTagPosition.pos(0, 0);
+			const float py = gTagPosition.pos(1, 0);
+			if (!boundsInit) {
+				minX = maxX = px;
+				minY = maxY = py;
+				boundsInit = true;
+			} else {
+				if (px < minX) {
+					minX = px;
+				}
+				if (px > maxX) {
+					maxX = px;
+				}
+				if (py < minY) {
+					minY = py;
+				}
+				if (py > maxY) {
+					maxY = py;
+				}
+			}
+		}
+
+		JSONVar origin;
+		origin["x"] = 0;
+		origin["y"] = 0;
+		origin["z"] = 0;
+		origin["label"] = "Origen";
+
+		JSONVar bounds;
+		if (boundsInit) {
+			const float pad = 1.f;
+			bounds["minX"] = roundMeters(minX - pad, 2);
+			bounds["maxX"] = roundMeters(maxX + pad, 2);
+			bounds["minY"] = roundMeters(minY - pad, 2);
+			bounds["maxY"] = roundMeters(maxY + pad, 2);
+		}
+
+		JSONVar position;
+		position["valid"] = gTagPosition.valid;
+		position["anchorsUsed"] = gTagPosition.anchorsUsed;
+		if (gTagPosition.valid) {
+			position["x"] = roundMeters(gTagPosition.pos(0, 0), 2);
+			position["y"] = roundMeters(gTagPosition.pos(1, 0), 2);
+			position["z"] = roundMeters(gTagPosition.pos(2, 0), 2);
+			position["residual"] = roundMeters(gTagPosition.residual, 3);
+		}
+		position["updatedMs"] = (double)gTagPosition.updatedMs;
+
+		JSONVar root;
+		root["trilateration_mode"] = trilaterationModeStr();
+		root["origin"] = origin;
+		if (boundsInit) {
+			root["bounds"] = bounds;
+		}
+		root["anchors"] = anchors;
+		root["anchor_count"] = list.devices;
+		root["uwb_count"] = DW1000Ranging.getNetworkDevicesNumber();
+		root["position"] = position;
+		return JSON.stringify(root);
+	}
+
 	String debugToJson() {
 		JSONVar info;
 		info["role"] = "tag";
@@ -184,6 +299,7 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 			info["anchor_count"] =
 				IndoorUWB_Storage::getInstance().anchorList.devices;
 			info["uwb_count"] = DW1000Ranging.getNetworkDevicesNumber();
+			info["trilateration_mode"] = trilaterationModeStr();
 			AsyncWebServerResponse *response =
 				request->beginResponse(200, "application/json",
 									   JSON.stringify(info));
@@ -203,6 +319,14 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 			AsyncWebServerResponse *response = request->beginResponse(
 				200, "application/json",
 				IndoorUWB_WebServer::getInstance().anchorsToJson());
+			addCors(response);
+			request->send(response);
+		});
+
+		server.on("/api/map", HTTP_GET, [](AsyncWebServerRequest *request) {
+			AsyncWebServerResponse *response = request->beginResponse(
+				200, "application/json",
+				IndoorUWB_WebServer::getInstance().mapToJson());
 			addCors(response);
 			request->send(response);
 		});

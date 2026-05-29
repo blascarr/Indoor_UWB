@@ -3,7 +3,9 @@
 
 #include "../config.h"
 #include "../models/AnchorModel.h"
+#include "../models/TagPosition.h"
 #include "../models/Trilateration.h"
+#include "../models/TrilaterationEngine.h"
 #include "IndoorUWB_Controller.h"
 #include "IndoorUWB_ESPNow.h"
 #include "IndoorUWB_Storage.h"
@@ -12,6 +14,7 @@
 
 #if defined(INDOOR_UWB_ROLE_TAG)
 extern Vector3D gPosition;
+extern TagPositionState gTagPosition;
 #endif
 
 class IndoorUWB_DW1000 : public IndoorUWB_Controller {
@@ -108,12 +111,14 @@ class IndoorUWB_DW1000 : public IndoorUWB_Controller {
 		if (DW1000Ranging.getNetworkDevicesNumber() < TRILATERATION_NODES) {
 			return;
 		}
-#ifdef TRILATERATION3D
+		runTrilateration(gTagPosition);
+		gPosition = gTagPosition.pos;
 #if TRILATERATION_DEBUG
-		DUMP("TRILATERATION pos ", gPosition(0));
-		DUMP(" ", gPosition(1));
-		DUMPLN(" ", gPosition(2));
-#endif
+		if (gTagPosition.valid) {
+			DUMPF("TRILATERATION pos %.2f %.2f %.2f (anchors=%u residual=%.3f)\n",
+				  gPosition(0, 0), gPosition(1, 0), gPosition(2, 0),
+				  gTagPosition.anchorsUsed, gTagPosition.residual);
+		}
 #endif
 	}
 #endif
@@ -132,6 +137,7 @@ class IndoorUWB_DW1000 : public IndoorUWB_Controller {
 
 #if defined(INDOOR_UWB_ROLE_TAG)
 Vector3D gPosition;
+TagPositionState gTagPosition;
 #endif
 
 #endif

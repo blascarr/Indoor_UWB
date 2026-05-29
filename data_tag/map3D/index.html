@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mapa 3D CDN — Indoor UWB</title>
+  <link rel="stylesheet" href="/map.css">
+</head>
+<body class="map-page">
+  <header class="map-header">
+    <h1>Mapa 3D (Three.js CDN)</h1>
+    <p id="status" class="status">Cargando Three.js…</p>
+    <nav class="map-nav" aria-label="Vistas de mapa">
+      <a href="/map/">Mapa local</a>
+      <a href="/map2D/">Mapa 2D CDN</a>
+      <a href="/map3D/" class="active">Mapa 3D CDN</a>
+      <a href="/">Portal</a>
+    </nav>
+    <div class="map-toolbar">
+      <button type="button" id="btn-reset">Centrar</button>
+      <label class="checkbox-label">
+        <input type="checkbox" id="auto-refresh" checked> Auto
+      </label>
+    </div>
+  </header>
+  <div id="banner" class="map-banner hidden"></div>
+  <div class="map-stage">
+    <div id="three-root" class="three-root"></div>
+    <div class="map-legend">
+      <div><span class="dot-origin"></span>Origen</div>
+      <div><span class="dot-anchor"></span>Anchor</div>
+      <div><span class="dot-tag"></span>Tag</div>
+    </div>
+  </div>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script src="/map-common.js"></script>
+  <script type="module" src="/map3D/map3d.js"></script>
+</body>
+</html>
