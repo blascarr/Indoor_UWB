@@ -7,7 +7,9 @@
 #include "../models/Trilateration.h"
 #include "../models/TrilaterationEngine.h"
 #include "IndoorUWB_Controller.h"
+#if ESPNOW_ENABLED
 #include "IndoorUWB_ESPNow.h"
+#endif
 #include "IndoorUWB_Storage.h"
 #include <DW1000Ranging.h>
 #include <SPI.h>
@@ -86,7 +88,7 @@ class IndoorUWB_DW1000 : public IndoorUWB_Controller {
 		DW1000Ranging.resetDeviceRangeWarmup(device);
 		DUMPF("UWB: nuevo dispositivo, short=0x%04X\n",
 			  device->getShortAddress());
-#if defined(INDOOR_UWB_ROLE_TAG)
+#if ESPNOW_ENABLED && defined(INDOOR_UWB_ROLE_TAG)
 		IndoorUWB_ESPNow::requestAnchorSync(device->getShortAddress());
 #endif
 	}

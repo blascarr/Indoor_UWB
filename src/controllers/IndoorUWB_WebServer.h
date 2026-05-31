@@ -12,7 +12,9 @@
 #include "../models/TagPosition.h"
 #include "IndoorUWB_Controller.h"
 #include "IndoorUWB_DW1000.h"
+#if ESPNOW_ENABLED
 #include "IndoorUWB_ESPNow.h"
+#endif
 #include "IndoorUWB_Storage.h"
 #include "IndoorUWB_Wifi.h"
 #include <DW1000Ranging.h>
@@ -300,6 +302,7 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 				IndoorUWB_Storage::getInstance().anchorList.devices;
 			info["uwb_count"] = DW1000Ranging.getNetworkDevicesNumber();
 			info["trilateration_mode"] = trilaterationModeStr();
+			info["espnow_enabled"] = ESPNOW_ENABLED != 0;
 			AsyncWebServerResponse *response =
 				request->beginResponse(200, "application/json",
 									   JSON.stringify(info));
@@ -702,6 +705,19 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 
 	static bool handleSyncRequest(AsyncWebServerRequest *request,
 								  uint16_t shortAddr) {
+#if !ESPNOW_ENABLED
+		(void)shortAddr;
+		JSONVar err;
+		err["ok"] = false;
+		err["error"] = "espnow_disabled";
+		err["hint"] =
+			"ESP-NOW desactivado en compilacion (ESPNOW_ENABLED=0).";
+		AsyncWebServerResponse *response = request->beginResponse(
+			503, "application/json", JSON.stringify(err));
+		addCors(response);
+		request->send(response);
+		return false;
+#else
 		if (WiFi.status() != WL_CONNECTED) {
 			JSONVar err;
 			err["ok"] = false;
@@ -726,6 +742,7 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 		}
 		sendSyncResponse(request, shortAddr);
 		return true;
+#endif
 	}
 
 	static bool parseSyncShortParam(AsyncWebServerRequest *request,
@@ -748,6 +765,7 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 
 	static void sendSyncResponse(AsyncWebServerRequest *request,
 								 uint16_t shortAddr) {
+#if ESPNOW_ENABLED
 		JSONVar resp;
 		resp["ok"] = true;
 		resp["shortAddress"] = shortAddr;
@@ -755,6 +773,7 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 			200, "application/json", JSON.stringify(resp));
 		addCors(response);
 		request->send(response);
+#endif
 	}
 #endif
 
@@ -864,8 +883,13 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 			});
 
 		server.on("/api/sync", HTTP_POST, [](AsyncWebServerRequest *request) {
+#if ESPNOW_ENABLED
 			IndoorUWB_ESPNow::sendPositionSync();
 			request->send(200, "application/json", "{\"ok\":true}");
+#else
+			request->send(503, "application/json",
+						  "{\"ok\":false,\"error\":\"espnow_disabled\"}");
+#endif
 		});
 
 		server.on("/api/uwb-address", HTTP_GET,

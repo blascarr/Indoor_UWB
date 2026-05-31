@@ -6,7 +6,7 @@
 #include <WiFi.h>
 #include <functional>
 
-#if defined(INDOOR_UWB_ROLE_TAG) || defined(INDOOR_UWB_ROLE_ANCHOR)
+#if ESPNOW_ENABLED
 #include "IndoorUWB_ESPNow.h"
 #endif
 
@@ -77,12 +77,14 @@ class IndoorUWB_Wifi : public IndoorUWB_Controller {
 		DUMPF("  Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
 		DUMPF("  Mascara: %s\n", WiFi.subnetMask().toString().c_str());
 		DUMPF("  RSSI:    %d dBm\n", WiFi.RSSI());
+#if ESPNOW_ENABLED
 		IndoorUWB_ESPNow::onWifiConnected();
 #if defined(INDOOR_UWB_ROLE_TAG)
 		if (!_espNowSyncOnConnectDone) {
 			_espNowSyncOnConnectDone = true;
 			IndoorUWB_ESPNow::requestAnchorSync();
 		}
+#endif
 #endif
 	}
 

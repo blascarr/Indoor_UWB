@@ -2,6 +2,9 @@
 #define _INDOOR_UWB_ESPNOW_H
 
 #include "../config.h"
+
+#if ESPNOW_ENABLED
+
 #include "../models/AnchorModel.h"
 #include "IndoorUWB_Controller.h"
 #include "IndoorUWB_Storage.h"
@@ -213,5 +216,7 @@ bool IndoorUWB_ESPNow::_wifiPeersReady = false;
 bool IndoorUWB_ESPNow::_lastTagMacValid = false;
 uint8_t IndoorUWB_ESPNow::_lastTagMac[6] = {0};
 #endif
+
+#endif /* ESPNOW_ENABLED */
 
 #endif

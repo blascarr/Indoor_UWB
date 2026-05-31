@@ -107,8 +107,14 @@
 #endif
 
 // ------------------ ESP-NOW ------------------ //
+/** 1 = sync anchor/tag por ESP-NOW; 0 = desactivado (menor carga WiFi). Override: -D ESPNOW_ENABLED=0 */
+#ifndef ESPNOW_ENABLED
+#define ESPNOW_ENABLED 1
+#endif
+#if ESPNOW_ENABLED
 static const uint8_t ESPNOW_BROADCAST_MAC[] = {0xFF, 0xFF, 0xFF,
 											   0xFF, 0xFF, 0xFF};
+#endif
 
 // ------------------ Servidor HTTP ------------------ //
 #define SERVER_PORT 80
