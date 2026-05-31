@@ -2,6 +2,9 @@
 #define _INDOOR_UWB_OTA_H
 
 #include "../config.h"
+
+#if OTA_ENABLED
+
 #include "IndoorUWB_Controller.h"
 #include <ArduinoOTA.h>
 
@@ -17,7 +20,6 @@ class IndoorUWB_OTA : public IndoorUWB_Controller {
 	}
 
 	void begin() override {
-#if OTA_ENABLED
 		ArduinoOTA.setHostname(OTA_HOST);
 		ArduinoOTA.onStart([]() { DUMPSLN("OTA start"); });
 		ArduinoOTA.onEnd([]() { DUMPSLN("OTA end"); });
@@ -28,14 +30,11 @@ class IndoorUWB_OTA : public IndoorUWB_Controller {
 			[](ota_error_t error) { DUMPF("OTA Error[%u]\n", error); });
 		ArduinoOTA.begin();
 		DUMPSLN("OTA ready");
-#endif
 	}
 
-	void update() {
-#if OTA_ENABLED
-		ArduinoOTA.handle();
-#endif
-	}
+	void update() { ArduinoOTA.handle(); }
 };
+
+#endif /* OTA_ENABLED */
 
 #endif

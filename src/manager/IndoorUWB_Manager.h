@@ -6,7 +6,9 @@
 #if ESPNOW_ENABLED
 #include "../controllers/IndoorUWB_ESPNow.h"
 #endif
+#if OTA_ENABLED
 #include "../controllers/IndoorUWB_OTA.h"
+#endif
 #include "../controllers/IndoorUWB_WebServer.h"
 #include "../controllers/IndoorUWB_Wifi.h"
 #include "../controllers/IndoorUWB_Storage.h"
@@ -36,7 +38,9 @@ class IndoorUWB_Manager {
 #endif
 		dw1000 = &IndoorUWB_DW1000::getInstance();
 		web = &IndoorUWB_WebServer::getInstance();
+#if OTA_ENABLED
 		ota = &IndoorUWB_OTA::getInstance();
+#endif
 #if defined(INDOOR_UWB_ROLE_TAG)
 		tag = &IndoorUWB_Tag::getInstance();
 #endif
@@ -48,7 +52,9 @@ class IndoorUWB_Manager {
 		espNow->setOnChangeCallback(onState);
 #endif
 		web->setOnChangeCallback(onState);
+#if OTA_ENABLED
 		ota->setOnChangeCallback(onState);
+#endif
 
 		storage->begin();
 		wifi->begin();
@@ -57,7 +63,9 @@ class IndoorUWB_Manager {
 #endif
 		dw1000->begin();
 		web->begin();
+#if OTA_ENABLED
 		ota->begin();
+#endif
 #if defined(INDOOR_UWB_ROLE_TAG)
 		tag->begin();
 #endif
@@ -66,7 +74,9 @@ class IndoorUWB_Manager {
 	void update() {
 		wifi->update();
 		dw1000->update();
+#if OTA_ENABLED
 		ota->update();
+#endif
 	}
 
 	static void stateChangedCallback(ControllerType type, status_t prev,
@@ -84,7 +94,9 @@ class IndoorUWB_Manager {
 #endif
 	IndoorUWB_DW1000 *dw1000 = nullptr;
 	IndoorUWB_WebServer *web = nullptr;
+#if OTA_ENABLED
 	IndoorUWB_OTA *ota = nullptr;
+#endif
 #if defined(INDOOR_UWB_ROLE_TAG)
 	IndoorUWB_Tag *tag = nullptr;
 #endif

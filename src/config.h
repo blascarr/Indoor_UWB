@@ -50,8 +50,14 @@
 #define WIFI_RETRY_CYCLE_MS (60UL * 1000UL)
 
 // ------------------ OTA ------------------ //
+/** 1 = ArduinoOTA activo; 0 = desactivado (menor carga). Override: -D OTA_ENABLED=0
+ *  Con OTA desactivado usar env *_no_ota en platformio.ini (partición sin app1). */
+#ifndef OTA_ENABLED
 #define OTA_ENABLED 1
+#endif
+#if OTA_ENABLED
 #define OTA_PORT 8266
+#endif
 
 // ------------------ UWB / trilateración (tag) ------------------ //
 #define UWB_DEBUG 1

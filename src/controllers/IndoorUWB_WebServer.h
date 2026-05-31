@@ -303,6 +303,7 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 			info["uwb_count"] = DW1000Ranging.getNetworkDevicesNumber();
 			info["trilateration_mode"] = trilaterationModeStr();
 			info["espnow_enabled"] = ESPNOW_ENABLED != 0;
+			info["ota_enabled"] = OTA_ENABLED != 0;
 			AsyncWebServerResponse *response =
 				request->beginResponse(200, "application/json",
 									   JSON.stringify(info));
