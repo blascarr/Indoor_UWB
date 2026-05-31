@@ -144,15 +144,13 @@ class IndoorUWB_ESPNow : public IndoorUWB_Controller {
 		sendPacketTo(ESPNOW_BROADCAST_MAC, payload);
 	}
 
-	static void onDataSent(const esp_now_send_info_t *txInfo,
-						   esp_now_send_status_t status) {
-		(void)txInfo;
+	static void onDataSent(const uint8_t *mac, esp_now_send_status_t status) {
+		(void)mac;
 		DUMPLN("ESP-NOW send status: ",
 			   status == ESP_NOW_SEND_SUCCESS ? "OK" : "FAIL");
 	}
 
-	static void onDataRecv(const esp_now_recv_info_t *recvInfo,
-						   const uint8_t *data, int len) {
+	static void onDataRecv(const uint8_t *mac, const uint8_t *data, int len) {
 		if (len != (int)sizeof(EspNowAnchorPacket)) {
 			return;
 		}
@@ -207,7 +205,7 @@ class IndoorUWB_ESPNow : public IndoorUWB_Controller {
 				  pkt.name, pkt.shortAddress, pkt.x, pkt.y, pkt.z, pkt.offset);
 		}
 #endif
-		(void)recvInfo;
+		(void)mac;
 	}
 };
 
