@@ -38,3 +38,7 @@
 
 # LittleFS staging (generado por scripts/prepare_fs.py)
 /data/
+
+# Capturas de tests UWB en host
+test/captures/*.csv
+test/captures/*.png

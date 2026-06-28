@@ -3,6 +3,7 @@
 
 #include "../config.h"
 #include "../controllers/IndoorUWB_Storage.h"
+#include "../models/RangeFilter.h"
 #include "AnchorModel.h"
 #include "TagPosition.h"
 #include "Trilateration.h"
@@ -32,16 +33,20 @@ inline bool collectTrilaterationSample(TrilaterationSample &sample) {
 		if (raw < UWB_RANGE_MIN_M) {
 			continue;
 		}
-		const float corrected =
-			IndoorUWB_Storage::getInstance().correctedRange(
-				dev->getShortAddress(), raw);
-		if (corrected < 0.f) {
+		if (!RangeFilterManager::getInstance().isReady(
+				dev->getShortAddress())) {
+			continue;
+		}
+		const float filtered =
+			RangeFilterManager::getInstance().getFilteredRange(
+				dev->getShortAddress());
+		if (filtered < UWB_RANGE_MIN_M) {
 			continue;
 		}
 		sample.P[sample.count](0, 0) = anchor->x;
 		sample.P[sample.count](1, 0) = anchor->y;
 		sample.P[sample.count](2, 0) = anchor->z;
-		sample.d[sample.count] = corrected;
+		sample.d[sample.count] = filtered;
 		sample.count++;
 	}
 	return sample.count >= TRILATERATION_NODES;

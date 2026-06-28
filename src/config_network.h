@@ -12,7 +12,7 @@
 #define INDOOR_UWB_IP_O2 168
 #endif
 #ifndef INDOOR_UWB_IP_O3
-#define INDOOR_UWB_IP_O3 1
+#define INDOOR_UWB_IP_O3 40
 #endif
 
 #ifndef INDOOR_UWB_GW_O1

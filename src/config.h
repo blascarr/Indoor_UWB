@@ -63,9 +63,31 @@
 #define UWB_DEBUG 1
 /** 1 = MODE_LONGDATA_RANGE_ACCURACY; 0 = MODE_LONGDATA_RANGE_LOWPOWER */
 #define UWB_RF_MODE_ACCURACY 1
-#define UWB_RANGE_FILTER 1
+/** 0 = filtro Kalman propio (RangeFilter); 1 = EMA en librería DW1000 */
+#define UWB_RANGE_FILTER 0
 #ifndef UWB_RANGE_FILTER_SIZE
 #define UWB_RANGE_FILTER_SIZE 10
+#endif
+#ifndef UWB_MAX_DEVICES
+#define UWB_MAX_DEVICES 4
+#endif
+#ifndef UWB_RANGE_GATE_M
+#define UWB_RANGE_GATE_M 0.015f
+#endif
+#ifndef UWB_RANGE_DEADZONE_MIN_M
+#define UWB_RANGE_DEADZONE_MIN_M 0.015f
+#endif
+#ifndef UWB_RANGE_DEADZONE_MAX_M
+#define UWB_RANGE_DEADZONE_MAX_M 0.020f
+#endif
+#ifndef UWB_RANGE_KALMAN_Q
+#define UWB_RANGE_KALMAN_Q 1e-5f
+#endif
+#ifndef UWB_RANGE_KALMAN_R
+#define UWB_RANGE_KALMAN_R 1.6e-5f
+#endif
+#ifndef UWB_RANGE_FILTER_STALE_REJECTS
+#define UWB_RANGE_FILTER_STALE_REJECTS 10u
 #endif
 #ifndef UWB_REPLY_DELAY_US
 #define UWB_REPLY_DELAY_US 12000u
@@ -77,7 +99,7 @@
 #define UWB_RESET_PERIOD_MS 500u
 #endif
 #ifndef UWB_RANGE_MIN_M
-#define UWB_RANGE_MIN_M 0.05f
+#define UWB_RANGE_MIN_M 0.01f
 #endif
 #ifndef UWB_RANGE_MAX_M
 #define UWB_RANGE_MAX_M 30.0f
@@ -129,7 +151,9 @@ static const uint8_t ESPNOW_BROADCAST_MAC[] = {0xFF, 0xFF, 0xFF,
 #define UWB_LOOP_INTERVAL_MS 30u
 
 // ------------------ Serial debug ------------------ //
+#ifndef PRINTDEBUG
 #define PRINTDEBUG 1
+#endif
 #define SERIALDEBUG Serial
 
 #if PRINTDEBUG

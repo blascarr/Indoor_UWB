@@ -81,6 +81,12 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 				if (rawOut != nullptr) {
 					*rawOut = raw;
 				}
+				const float filtered =
+					RangeFilterManager::getInstance().getFilteredRange(
+						shortAddress);
+				if (filtered >= 0.f) {
+					return filtered;
+				}
 				return IndoorUWB_Storage::getInstance().correctedRange(
 					shortAddress, raw);
 			}
@@ -129,6 +135,15 @@ class IndoorUWB_WebServer : public IndoorUWB_Controller {
 				IndoorUWB_Storage::getInstance().correctedRange(
 					dev->getShortAddress(), raw);
 			uwb[i]["correctedRange"] = corrected;
+			const float filtered =
+				RangeFilterManager::getInstance().getFilteredRange(
+					dev->getShortAddress());
+			if (filtered >= 0.f) {
+				uwb[i]["filteredRange"] = filtered;
+			}
+			uwb[i]["filterReady"] =
+				RangeFilterManager::getInstance().isReady(
+					dev->getShortAddress());
 			uwb[i]["offset"] = IndoorUWB_Storage::getInstance().lookupOffsetByShort(
 				dev->getShortAddress());
 			uwb[i]["rxPower"] = dev->getRXPower();

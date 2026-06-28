@@ -4,8 +4,11 @@
 #include "../config.h"
 #include "../models/AnchorModel.h"
 #include "../models/TagPosition.h"
+#if defined(INDOOR_UWB_ROLE_TAG)
+#include "../models/RangeFilter.h"
 #include "../models/Trilateration.h"
 #include "../models/TrilaterationEngine.h"
+#endif
 #include "IndoorUWB_Controller.h"
 #if ESPNOW_ENABLED
 #include "IndoorUWB_ESPNow.h"
@@ -88,7 +91,9 @@ class IndoorUWB_DW1000 : public IndoorUWB_Controller {
 		DW1000Ranging.resetDeviceRangeWarmup(device);
 		DUMPF("UWB: nuevo dispositivo, short=0x%04X\n",
 			  device->getShortAddress());
+
 #if ESPNOW_ENABLED && defined(INDOOR_UWB_ROLE_TAG)
+		RangeFilterManager::getInstance().reset(device->getShortAddress());
 		IndoorUWB_ESPNow::requestAnchorSync(device->getShortAddress());
 #endif
 	}
@@ -96,6 +101,9 @@ class IndoorUWB_DW1000 : public IndoorUWB_Controller {
 	static void onInactiveDevice(DW1000Device *device) {
 		DUMPF("UWB: dispositivo inactivo, short=0x%04X\n",
 			  device->getShortAddress());
+#if defined(INDOOR_UWB_ROLE_TAG)
+		RangeFilterManager::getInstance().reset(device->getShortAddress());
+#endif
 	}
 
 #if defined(INDOOR_UWB_ROLE_TAG)
@@ -106,9 +114,13 @@ class IndoorUWB_DW1000 : public IndoorUWB_Controller {
 			const float offset =
 				IndoorUWB_Storage::getInstance().lookupOffsetByShort(
 					dev->getShortAddress());
-			const float corrected = raw + offset;
-			DUMPF("UWB: rango anchor 0x%04X = %.2f m (raw %.2f, offset %+.2f)\n",
-				  dev->getShortAddress(), corrected, raw, offset);
+			const RangeFilterSample sample =
+				RangeFilterManager::getInstance().update(
+					dev->getShortAddress(), raw, offset, millis());
+			DUMPF("UWB: anchor 0x%04X raw %.3f filt %.3f off %+.3f %s\n",
+				  dev->getShortAddress(), raw,
+				  sample.filtered >= 0.f ? sample.filtered : raw + offset,
+				  offset, sample.accepted ? "ok" : "rej");
 		}
 		if (DW1000Ranging.getNetworkDevicesNumber() < TRILATERATION_NODES) {
 			return;

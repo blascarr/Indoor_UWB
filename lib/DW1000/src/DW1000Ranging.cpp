@@ -255,7 +255,11 @@ boolean DW1000RangingClass::addNetworkDevices(DW1000Device* device, boolean shor
 		resetDeviceRangeWarmup(device);
 		memcpy(&_networkDevices[_networkDevicesNumber], device, sizeof(DW1000Device));
 		_networkDevices[_networkDevicesNumber].setIndex(_networkDevicesNumber);
-		_networkDevicesNumber++;
+		{
+			uint8_t count = _networkDevicesNumber;
+			count++;
+			_networkDevicesNumber = count;
+		}
 		return true;
 	}
 	
@@ -284,7 +288,11 @@ boolean DW1000RangingClass::addNetworkDevices(DW1000Device* device) {
 		resetDeviceRangeWarmup(device);
 		memcpy(&_networkDevices[_networkDevicesNumber], device, sizeof(DW1000Device));
 		_networkDevices[_networkDevicesNumber].setIndex(_networkDevicesNumber);
-		_networkDevicesNumber++;
+		{
+			uint8_t count = _networkDevicesNumber;
+			count++;
+			_networkDevicesNumber = count;
+		}
 		return true;
 	}
 	
@@ -298,7 +306,9 @@ void DW1000RangingClass::removeNetworkDevices(int16_t index) {
 	}
 	else if(index == _networkDevicesNumber-1) //if we delete the last element
 	{
-		_networkDevicesNumber--;
+		uint8_t count = _networkDevicesNumber;
+		count--;
+		_networkDevicesNumber = count;
 	}
 	else {
 		//we translate all the element wich are after the one we want to delete.
@@ -306,7 +316,9 @@ void DW1000RangingClass::removeNetworkDevices(int16_t index) {
 			memcpy(&_networkDevices[i], &_networkDevices[i+1], sizeof(DW1000Device));
 			_networkDevices[i].setIndex(i);
 		}
-		_networkDevicesNumber--;
+		uint8_t count = _networkDevicesNumber;
+		count--;
+		_networkDevicesNumber = count;
 	}
 }
 
